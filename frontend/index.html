@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CS:GO Rank Checker</title>
+  <style>
+    h1
+    {
+      color: beige;
+    }
+    p
+    {
+      color: beige;
+    }
+    body {
+      background-color: black;
+      font-family: Arial, sans-serif;
+      text-align: center;
+      margin: 20px;
+    }
+    input {
+      padding: 10px;
+      font-size: 16px;
+      width: 300px;
+      margin: 10px;
+    }
+    button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .result {
+      margin-top: 20px;
+      font-size: 18px;
+      font-weight: bold;
+    }
+    .error {
+      color: red;
+      margin-top: 20px;
+      font-size: 18px;
+    }
+  </style>
+</head>
+<body>
+  <h1>CS:GO Rank Checker</h1>
+  <p>Enter a Steam ID to check the player's rank:</p>
+  <input type="text" id="steamIdInput" placeholder="Enter Steam ID">
+  <button onclick="checkRank()">Check Rank</button>
+  <div class="result" id="result"></div>
+  <div class="error" id="error"></div>
+
+  <script src="/script.js"></script>
+</body>
+</html>
