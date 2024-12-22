@@ -9,7 +9,7 @@ router.get('/:platform/:id', async (req, res) => {
     try {
 
 
-        console.log(process.env.TRACKERGG_URL,process.env.TRACKERGG_API);
+        console.log(process.env.TRACKERGG_API);
         const headers = {
             'TRN-Api-Key': process.env.TRACKERGG_API
         }
@@ -17,7 +17,7 @@ router.get('/:platform/:id', async (req, res) => {
 
         const {platform,id} = req.params;
 
-        console.log(platform,id);
+        console.log(`${process.env.TRACKERGG_URL}/profile/${platform}/${id}`);
         const response = await fetch(`${process.env.TRACKERGG_URL}/profile/${platform}/${id}`,
             {
             headers
@@ -34,4 +34,3 @@ router.get('/:platform/:id', async (req, res) => {
 }); 
 
 export default router;
-
