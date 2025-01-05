@@ -1,69 +1,48 @@
 async function checkRank() {
+
   const steamId = document.getElementById("steamIdInput").value;
   const resultDiv = document.getElementById("result");
   const errorDiv = document.getElementById("error");
 
-  // Önceki sonuçları temizle
-  resultDiv.textContent = "";
-  errorDiv.textContent = "";
+  const gameNameInput = "csgo";
+  const platformInput = "steam"; 
+
+
+  resultDiv.innerHTML = "";
+  errorDiv.innerHTML = "";
 
   if (!steamId) {
-    errorDiv.textContent = "Please enter a Steam ID.";
+    errorDiv.innerHTML = "Please enter a Steam ID!";
     return;
   }
 
   try {
-    const response = await fetch(`http://localhost:3001/get_rank?steam_id=${steamId}`);
+    const response = await fetch("/routes/profile/setSteamId", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        steamId: steamId,
+        gameName: gameNameInput,
+        platform: platformInput,
+      }),
+    });
+    
+
     if (response.ok) {
+      // API'den dönen sonucu al
       const data = await response.json();
-      resultDiv.textContent = `Rank: ${data.rank}`;
+      // Rank bilgisini ekrana yazdır
+      resultDiv.innerHTML = `Player Rank: ${data.rank || "Unknown"}`;
     } else {
+      // API'den bir hata dönerse ekrana yazdır
       const errorData = await response.json();
-      errorDiv.textContent = errorData.error || "Player not found.";
+      errorDiv.innerHTML = `Error: ${errorData.error || "Something went wrong!"}`;
     }
   } catch (error) {
-    errorDiv.textContent = "An error occurred while fetching the data.";
+    // İstek sırasında bir hata oluşursa kullanıcıya göster
+    console.error("Error fetching rank:", error);
+    errorDiv.innerHTML = "Failed to fetch the rank. Please try again later.";
   }
 }
-
-async function fetchSteamStats() {
-  const steamId = document.getElementById("steamIdInput").value;
-  const resultDiv = document.getElementById("result");
-  const errorDiv = document.getElementById("error");
-
-  resultDiv.textContent = "";
-  errorDiv.textContent = "";
-
-  if (!steamId) {
-      errorDiv.textContent = "Please enter a Steam ID.";
-      return;
-  }
-
-  try {
-      const response = await fetch(`http://localhost:3001/get_steam_stats?steam_id=${steamId}`);
-      if (response.ok) {
-          const data = await response.json();
-
-          // İstatistikleri ekranda göster
-          resultDiv.innerHTML = `
-              <p><strong>Game:</strong> ${data.gameName}</p>
-              <p><strong>Steam ID:</strong> ${data.steamID}</p>
-              <h3>Stats:</h3>
-              <ul>
-                  ${data.stats.map(stat => `<li>${stat.name}: ${stat.value}</li>`).join("")}
-              </ul>
-              <h3>Achievements:</h3>
-              <ul>
-                  ${data.achievements.map(ach => `<li>${ach.name}: ${ach.achieved ? "Yes" : "No"}</li>`).join("")}
-              </ul>
-          `;
-      } else {
-          const errorData = await response.json();
-          errorDiv.textContent = errorData.error || "Failed to fetch stats.";
-      }
-  } catch (error) {
-      console.error(error);
-      errorDiv.textContent = "An error occurred while fetching the stats.";
-  }
-}
-
