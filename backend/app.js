@@ -8,11 +8,16 @@ import dotenv from "dotenv";
 import morgan from "morgan";
 import session from "express-session";
 
+//Routes
 import profileRoutes from './routes/profile/profile.js';
+import usersRoutes from './routes/users/signup.js';
 
-//Profile
+
+//Firebase
+import { db } from "./firebaseAdmin.js";  
 
 dotenv.config();
+
 
 const app = express();
 const PORT = 3000;
@@ -31,8 +36,6 @@ app.use(
   })
 );
 
-
-
 //MIDDLEWARES
 
 //Dev logging
@@ -44,6 +47,14 @@ if(process.env.NODE_ENV === 'development')
 app.use(cors());
 app.use(express.static(path.join(__dirname, "../frontend")));
 
+//Testing for database server.
+app.get("/test", async (req, res) => {
+  const snapshot = await db.collection("users").get();
+  const data = snapshot.docs.map(doc => doc.data());
+  res.send(data);
+});
+
+
 //Main Page
 app.get("/", (req, res) => {
   const location = path.join(__dirname, "../frontend/index.html");
@@ -52,6 +63,11 @@ app.get("/", (req, res) => {
 
 //Route -> Profile Informations
 app.use('/profile',profileRoutes);
+
+//Route -> users Log in/Sign up
+
+app.use('/users',usersRoutes);
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
