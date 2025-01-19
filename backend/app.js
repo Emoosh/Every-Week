@@ -23,7 +23,6 @@ const app = express();
 const PORT = 3000;
 app.use(express.json());
 
-//const STEAM_API_KEY = process.env.STEAM_API_KEY; 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 
