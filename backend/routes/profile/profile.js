@@ -8,13 +8,7 @@ const router = express.Router();
 // ----------------------------------------------------------------------------
 // 1) Nodemailer transport tanımı
 // ----------------------------------------------------------------------------
-const transporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: "emihran.dev@gmail.com",  // Kendi Gmail adresiniz
-    pass: "12092003EeEe!?",       // App Password veya şifreniz
-  },
-});
+
 
 // ----------------------------------------------------------------------------
 // 2) OTP oluşturma fonksiyonu
