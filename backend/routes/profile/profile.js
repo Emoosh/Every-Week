@@ -56,13 +56,7 @@ router.post("/setUser", async (req, res) => {
     const otp = generateRandomOTP(6);
     req.session.user.otp = otp;
 
-    // Mail içerik ayarları
-    const mailOptions = {
-      from: "eyilmaz2003@gmail.com",
-      to: email,
-      subject: "OTP Kodu",
-      text: `Merhaba, OTP kodunuz: ${otp}. Lütfen uygulamada doğrulayın.`,
-    };
+
 
     // Mail gönder
     await transporter.sendMail(mailOptions);
