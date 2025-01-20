@@ -8,6 +8,13 @@ const router = express.Router();
 // ----------------------------------------------------------------------------
 // 1) Nodemailer transport tanımı
 // ----------------------------------------------------------------------------
+const transporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: "emihran.dev@gmail.com",  // Kendi Gmail adresiniz
+    pass: "12092003EeEe!?",       // App Password veya şifreniz
+  },
+});
 
 // ----------------------------------------------------------------------------
 // 2) OTP oluşturma fonksiyonu
@@ -55,13 +62,7 @@ router.post("/setUser", async (req, res) => {
     const otp = generateRandomOTP(6);
     req.session.user.otp = otp;
 
-    // Mail içerik ayarları
-    const mailOptions = {
-      from: "eyilmaz2003@gmail.com",
-      to: email,
-      subject: "OTP Kodu",
-      text: `Merhaba, OTP kodunuz: ${otp}. Lütfen uygulamada doğrulayın.`,
-    };
+
 
     // Mail gönder
     await transporter.sendMail(mailOptions);
