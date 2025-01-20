@@ -19,8 +19,7 @@ const otpController = {
       verified: false,
     });
 
-    console.log(token);
-    return { secret, token };
+    return { secret, token};
   },
 
   async verifyOTP(mail, token) {

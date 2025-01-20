@@ -14,38 +14,32 @@ router.post("/signup", async (req, res) => {
     if (!mail || !password) {
       return res.status(400).json({
         success: false,
-        message: "Tüm alanlar zorunludur.",
+        message: "E-posta ve şifre zorunludur.",
       });
     }
 
+    // OTP oluştur
     const { token } = await otpController.requestOTP(mail);
 
-    /* await sendMail(
+    // Kullanıcı OTP'sini e-posta ile gönder
+    await sendMail(
       mail,
       "Doğrulama Kodu",
-      `Kaydolmak için kullanacağınız doğrulama kodu: ${token}`
+      `Kaydolmak için doğrulama kodunuz: ${token}`
     );
- */
-    const isOTPValid = await otpController.verifyOTP(mail, token);
 
-    if (!isOTPValid) {
-      return res.status(400).json({
-        success: false,
-        message: "OTP doğrulaması başarısız.",
-      });
-    }
-
-    const hashedPassword = await argon2.hash(password);
-
-    await db.collection("users").doc(mail).set({
+    // Kullanıcı kaydını bekleyen duruma al
+    await db.collection("pendingUsers").doc(mail).set({
       mail,
-      hashedPassword,
+      password, // Şifreyi hashlemiyoruz, çünkü kayıt sırasında doğrulama yapılacak
+      otp: token, // OTP'yi saklıyoruz
       createdAt: new Date(),
     });
 
-    return res.status(201).json({
+    return res.status(200).json({
       success: true,
-      message: "Kullanıcı başarıyla kaydedildi.",
+      message: "Kayıt işlemi başlatıldı. OTP kodu e-posta adresinize gönderildi.",
+
     });
   } catch (error) {
     console.error("Signup hatası:", error);
@@ -55,6 +49,8 @@ router.post("/signup", async (req, res) => {
     });
   }
 });
+
+
 
 
 router.post("/requestOTP", async (req, res) => {
@@ -68,21 +64,40 @@ router.post("/requestOTP", async (req, res) => {
       });
     }
 
+    // Bekleyen kullanıcı kontrolü
+    const pendingUserDoc = await db.collection("pendingUsers").doc(mail).get();
+    if (!pendingUserDoc.exists) {
+      return res.status(404).json({
+        success: false,
+        message: "Bekleyen kullanıcı bulunamadı.",
+      });
+    }
+
+    // Yeni OTP oluştur ve güncelle
     const { token } = await otpController.requestOTP(mail);
+
+    await db.collection("pendingUsers").doc(mail).update({ otp: token });
+
+    // Yeni OTP'yi e-posta ile gönder
+    await sendMail(
+      mail,
+      "Yeni Doğrulama Kodu",
+      `Yeni doğrulama kodunuz: ${token}`
+    );
 
     return res.status(200).json({
       success: true,
-      message: "OTP başarıyla oluşturuldu.",
-      testToken: token, 
+      message: "Yeni OTP başarıyla gönderildi.",
     });
   } catch (error) {
-    console.error("OTP oluşturma hatası:", error);
+    console.error("Yeni OTP gönderme hatası:", error);
     return res.status(500).json({
       success: false,
       message: error.message,
     });
   }
 });
+
 
 router.post("/verifyOTP", async (req, res) => {
   try {
@@ -95,19 +110,45 @@ router.post("/verifyOTP", async (req, res) => {
       });
     }
 
-    const isValid = await otpController.verifyOTP(mail, token);
-
-    if (isValid) {
-      return res.status(200).json({
-        success: true,
-        message: "OTP doğrulandı.",
-      });
-    } else {
-      return res.status(400).json({
+    // Bekleyen kullanıcıyı kontrol et
+    const pendingUserDoc = await db.collection("pendingUsers").doc(mail).get();
+    if (!pendingUserDoc.exists) {
+      return res.status(404).json({
         success: false,
-        message: "OTP geçersiz veya süresi dolmuş.",
+        message: "Bekleyen kullanıcı bulunamadı.",
       });
     }
+
+    const pendingUserData = pendingUserDoc.data();
+
+    // OTP doğrulama
+
+    console.log(typeof pendingUserData.otp, pendingUserData.otp);
+    console.log(typeof token, token); 
+    
+    if (pendingUserData.otp !== String(token)) {
+      return res.status(400).json({
+        success: false,
+        message: "OTP kodu geçersiz veya süresi dolmuş.",
+      });
+    }
+
+    // Şifreyi hashle ve kullanıcıyı kaydet
+    const hashedPassword = await argon2.hash(String(pendingUserData.password));
+
+    await db.collection("users").doc(mail).set({
+      mail,
+      password: hashedPassword,
+      createdAt: new Date(),
+    });
+
+    // Bekleyen kullanıcı kaydını sil
+    await db.collection("pendingUsers").doc(mail).delete();
+
+    return res.status(200).json({
+      success: true,
+      message: "Kayıt tamamlandı ve kullanıcı doğrulandı.",
+    });
   } catch (error) {
     console.error("OTP doğrulama hatası:", error);
     return res.status(500).json({
@@ -116,5 +157,6 @@ router.post("/verifyOTP", async (req, res) => {
     });
   }
 });
+
 
 export default router;
