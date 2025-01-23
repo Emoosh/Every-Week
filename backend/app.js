@@ -9,8 +9,8 @@ import morgan from "morgan";
 import session from "express-session";
 
 //Routes
-import usersRoutes from './routes/users/signup.js';
-
+import usersRegisterRoutes from './routes/users/signUp.js';
+import usersLoginRoute from './routes/users/logIn.js';
 
 //Firebase
 import { db } from "./firebaseAdmin.js";  
@@ -59,11 +59,10 @@ app.get("/", (req, res) => {
   res.sendFile(location);
 });
 
-
 //Route -> users Log in/Sign up
 
-app.use('/users',usersRoutes);
-
+app.use('/users/register',usersRegisterRoutes);
+app.use('/users/login',usersLoginRoute);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
