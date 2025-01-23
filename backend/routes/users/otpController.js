@@ -4,8 +4,8 @@ import otpService from "./otpService.js";
 const otpController = {
   async requestOTP(mail) {
 
-    if (!mail.endsWith("@tedu.edu.tr")) {
-      throw new Error("You can join this community with only your school mail.");
+    if (!mail.endsWith("edu.tr")) {
+      throw new Error("Bu topluluğa sadece okul e-posta adresin ile kayıt olabilirsin.");
     }
 
     const secret = otpService.generateSecret();

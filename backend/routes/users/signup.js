@@ -18,31 +18,28 @@ router.post("/signup", async (req, res) => {
       });
     }
 
-    // OTP oluştur
     const { token } = await otpController.requestOTP(mail);
 
-    // Kullanıcı OTP'sini e-posta ile gönder
     await sendMail(
       mail,
       "Doğrulama Kodu",
       `Kaydolmak için doğrulama kodunuz: ${token}`
     );
 
-    // Kullanıcı kaydını bekleyen duruma al
     await db.collection("pendingUsers").doc(mail).set({
       mail,
-      password, // Şifreyi hashlemiyoruz, çünkü kayıt sırasında doğrulama yapılacak
-      otp: token, // OTP'yi saklıyoruz
+      password, 
+      otp: token, 
       createdAt: new Date(),
     });
 
     return res.status(200).json({
       success: true,
-      message: "Kayıt işlemi başlatıldı. OTP kodu e-posta adresinize gönderildi.",
+      message: "OTP kodu mail adresinize gönderilmiştir. ",
 
     });
   } catch (error) {
-    console.error("Signup hatası:", error);
+    console.error("Signup error:", error);
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -64,7 +61,6 @@ router.post("/requestOTP", async (req, res) => {
       });
     }
 
-    // Bekleyen kullanıcı kontrolü
     const pendingUserDoc = await db.collection("pendingUsers").doc(mail).get();
     if (!pendingUserDoc.exists) {
       return res.status(404).json({
@@ -73,12 +69,10 @@ router.post("/requestOTP", async (req, res) => {
       });
     }
 
-    // Yeni OTP oluştur ve güncelle
     const { token } = await otpController.requestOTP(mail);
 
-    await db.collection("pendingUsers").doc(mail).update({ otp: token });
+    await db.collection("pendingUsers").doc(mail).update({ otp: String(token) });
 
-    // Yeni OTP'yi e-posta ile gönder
     await sendMail(
       mail,
       "Yeni Doğrulama Kodu",
@@ -98,6 +92,7 @@ router.post("/requestOTP", async (req, res) => {
   }
 });
 
+const MAX_OTP_DURATION = 30;
 
 router.post("/verifyOTP", async (req, res) => {
   try {
@@ -110,7 +105,6 @@ router.post("/verifyOTP", async (req, res) => {
       });
     }
 
-    // Bekleyen kullanıcıyı kontrol et
     const pendingUserDoc = await db.collection("pendingUsers").doc(mail).get();
     if (!pendingUserDoc.exists) {
       return res.status(404).json({
@@ -119,21 +113,27 @@ router.post("/verifyOTP", async (req, res) => {
       });
     }
 
+    //I dont understand why totp doesn't work, I guess it is because I dont have NTP server to
+    //sync time but this is also a solution but I don't know if there are any vulnarabilities.
     const pendingUserData = pendingUserDoc.data();
-
-    // OTP doğrulama
-
-    console.log(typeof pendingUserData.otp, pendingUserData.otp);
-    console.log(typeof token, token); 
+    const createdAt = pendingUserData.createdAt.toDate(); 
+    const timeElapsed = Math.floor((Date.now() - createdAt.getTime()) / 1000);
     
-    if (pendingUserData.otp !== String(token)) {
+    if (timeElapsed > MAX_OTP_DURATION) {
+      await db.collection("pendingUsers").doc(mail).delete(); // Kullanıcıyı sil
+      return res.status(400).json({
+        success: false,
+        message: "OTP kodunun süresi dolmuş. Yeni bir kod talep edin.",
+      });
+    }
+    
+    if (pendingUserData.otp !== token) {
       return res.status(400).json({
         success: false,
         message: "OTP kodu geçersiz veya süresi dolmuş.",
       });
     }
 
-    // Şifreyi hashle ve kullanıcıyı kaydet
     const hashedPassword = await argon2.hash(String(pendingUserData.password));
 
     await db.collection("users").doc(mail).set({
@@ -142,7 +142,6 @@ router.post("/verifyOTP", async (req, res) => {
       createdAt: new Date(),
     });
 
-    // Bekleyen kullanıcı kaydını sil
     await db.collection("pendingUsers").doc(mail).delete();
 
     return res.status(200).json({

@@ -9,7 +9,6 @@ import morgan from "morgan";
 import session from "express-session";
 
 //Routes
-import profileRoutes from './routes/profile/profile.js';
 import usersRoutes from './routes/users/signup.js';
 
 
@@ -60,8 +59,6 @@ app.get("/", (req, res) => {
   res.sendFile(location);
 });
 
-//Route -> Profile Informations
-app.use('/profile',profileRoutes);
 
 //Route -> users Log in/Sign up
 
