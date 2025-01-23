@@ -18,6 +18,24 @@ router.post("/signup", async (req, res) => {
       });
     }
 
+    //BURASI DEVELOPMENT NEDENİYLE KAPALI
+    
+   /*  const existingUserSnapshot = await db.collection("users").where("mail", "==", mail).get();
+    if (!existingUserSnapshot.empty) {
+      return res.status(409).json({
+        success: false,
+        message: "Bu e-posta adresi zaten kayıtlıdır.",
+      });
+    }
+
+    const existingPendingUserSnapshot = await db.collection("pendingUsers").doc(mail).get();
+    if (existingPendingUserSnapshot.exists) {
+      return res.status(409).json({
+        success: false,
+        message: "Bu e-posta adresi için zaten bir kayıt işlemi devam etmektedir.",
+      });
+    } */
+
     const { token } = await otpController.requestOTP(mail);
 
     await sendMail(
