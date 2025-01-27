@@ -9,8 +9,8 @@ import morgan from "morgan";
 import session from "express-session";
 
 //Routes
-import usersRegisterRoutes from './routes/users/signUp.js';
-import usersLoginRoute from './routes/users/logIn.js';
+import usersRegisterRoutes from './routes/users/signup.js';
+import usersLoginRoute from './routes/users/login.js';
 
 //Firebase
 import { db } from "./firebaseAdmin.js";  
@@ -25,6 +25,9 @@ app.use(express.json());
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 
+//This line haven't completed yet.
+// The purpose of this to preventing users to login each time.
+// By just basically using cookies.
 app.use(
   session({
     secret: "your_secret_key", 
@@ -33,8 +36,6 @@ app.use(
     cookie: { secure: false }, 
   })
 );
-
-//MIDDLEWARES
 
 //Dev logging
 if(process.env.NODE_ENV === 'development')
