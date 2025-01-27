@@ -8,20 +8,26 @@ import dotenv from "dotenv";
 import morgan from "morgan";
 import session from "express-session";
 
-import profileRoutes from './routes/profile/profile.js';
+//Routes
+import usersRegisterRoutes from './routes/users/signup.js';
+import usersLoginRoute from './routes/users/login.js';
 
-//Profile
+//Firebase
+import { db } from "./firebaseAdmin.js";  
 
 dotenv.config();
+
 
 const app = express();
 const PORT = 3000;
 app.use(express.json());
 
-//const STEAM_API_KEY = process.env.STEAM_API_KEY; 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
 
+//This line haven't completed yet.
+// The purpose of this to preventing users to login each time.
+// By just basically using cookies.
 app.use(
   session({
     secret: "your_secret_key", 
@@ -30,10 +36,6 @@ app.use(
     cookie: { secure: false }, 
   })
 );
-
-
-
-//MIDDLEWARES
 
 //Dev logging
 if(process.env.NODE_ENV === 'development')
@@ -44,14 +46,24 @@ if(process.env.NODE_ENV === 'development')
 app.use(cors());
 app.use(express.static(path.join(__dirname, "../frontend")));
 
+//Testing for database server.
+app.get("/test", async (req, res) => {
+  const snapshot = await db.collection("users").get();
+  const data = snapshot.docs.map(doc => doc.data());
+  res.send(data);
+});
+
+
 //Main Page
 app.get("/", (req, res) => {
   const location = path.join(__dirname, "../frontend/index.html");
   res.sendFile(location);
 });
 
-//Route -> Profile Informations
-app.use('/profile',profileRoutes);
+//Route -> users Log in/Sign up
+
+app.use('/users/register',usersRegisterRoutes);
+app.use('/users/login',usersLoginRoute);
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
