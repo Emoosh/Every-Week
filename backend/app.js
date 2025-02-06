@@ -11,7 +11,7 @@ import session from "express-session";
 //Routes
 import usersRegisterRoutes from './routes/users/signup.js';
 import usersLoginRoute from './routes/users/login.js';
-
+import riotInfoRoute from './routes/profile/profile_information_providers/riot_info.js'
 //Firebase
 import { db } from "./firebaseAdmin.js";  
 
@@ -61,7 +61,7 @@ app.get("/", (req, res) => {
 });
 
 //Route -> users Log in/Sign up
-
+app.use('/riot/info',riotInfoRoute);
 app.use('/users/register',usersRegisterRoutes);
 app.use('/users/login',usersLoginRoute);
 
