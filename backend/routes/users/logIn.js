@@ -5,7 +5,7 @@ import validator from "validator";
 
 const router = express.Router();
 
-router.post("/logIn", async (req, res) => {
+router.post("/", async (req, res) => {
   try {
     const { mail, password } = req.body;
 
