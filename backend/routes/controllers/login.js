@@ -1,7 +1,7 @@
-import { auth, db } from "../../firebaseAdmin.js";
 import express from "express";
 import argon2 from "argon2";
 import validator from "validator";
+import { connectDB } from "../../Database/db.js"; // MongoDB bağlantısı için
 
 const router = express.Router();
 
@@ -9,7 +9,6 @@ router.post("/", async (req, res) => {
   try {
     const { mail, password } = req.body;
 
-    // Input validation
     if (!mail || !password) {
       return res.status(400).json({
         success: false,
@@ -17,23 +16,23 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // Email format validation
     if (!validator.isEmail(mail)) {
       return res.status(400).json({
         success: false,
         message: "Geçerli bir e-posta adresi girin.",
       });
     }
+    const db = await connectDB(); // MongoDB bağlantısını alıyoruz
 
-    // Check login attempts
-    const loginAttemptsRef = db.collection("loginAttempts").doc(mail);
-    const loginAttemptsDoc = await loginAttemptsRef.get();
-    const loginAttempts = loginAttemptsDoc.exists ? loginAttemptsDoc.data() : { count: 0, lastAttempt: null };
+    // 📌 2. Giriş Denemelerini Kontrol Et (loginAttempts koleksiyonu)
+    const loginAttemptsCollection = db.collection("loginAttempts");
+    const userCollection = db.collection("users");
 
-    // Block if too many failed attempts
-    if (loginAttempts.count >= 3) {
+    const loginAttempts = await loginAttemptsCollection.findOne({ mail });
+
+    if (loginAttempts && loginAttempts.count >= 3) {
       const timeSinceLastAttempt = Date.now() - loginAttempts.lastAttempt;
-      if (timeSinceLastAttempt < 3 * 60 * 1000) { 
+      if (timeSinceLastAttempt < 3 * 60 * 1000) {  
         return res.status(429).json({
           success: false,
           message: "Çok fazla başarısız giriş denemesi. 3 dakika sonra tekrar deneyin."
@@ -41,14 +40,19 @@ router.post("/", async (req, res) => {
       }
     }
 
-    // Check if user exists
-    const userDoc = await db.collection("users").doc(mail).get();
-    if (!userDoc.exists) {
-      // Increment failed attempt
-      await loginAttemptsRef.set({
-        count: (loginAttempts.count || 0) + 1,
-        lastAttempt: Date.now()
-      });
+    // 📌 3. Kullanıcı Var mı?
+    const user = await userCollection.findOne({ mail });
+
+    if (!user) {
+      // Başarısız giriş denemelerini artır
+      await loginAttemptsCollection.updateOne(
+        { mail },
+        {
+          $set: { lastAttempt: Date.now() },
+          $inc: { count: 1 }
+        },
+        { upsert: true } // Eğer kayıt yoksa oluştur
+      );
 
       return res.status(404).json({
         success: false,
@@ -56,25 +60,24 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // Retrieve user data
-    const userData = userDoc.data();
-
-    // Verify password with Argon2
-    if (!userData.password) {
+    // 📌 4. Şifre Doğrulama (argon2 ile)
+    if (!user.password) {
       return res.status(401).json({
         success: false,
         message: "Kullanıcı şifresi bulunamadı.",
       });
     }
-  
-    // Verify password with Argon2
-    const isPasswordValid = await argon2.verify(userData.password, password);
+
+    const isPasswordValid = await argon2.verify(user.password, password);
     if (!isPasswordValid) {
-      // Increment failed attempt
-      await loginAttemptsRef.set({
-        count: (loginAttempts.count || 0) + 1,
-        lastAttempt: Date.now()
-      });
+      await loginAttemptsCollection.updateOne(
+        { mail },
+        {
+          $set: { lastAttempt: Date.now() },
+          $inc: { count: 1 }
+        },
+        { upsert: true }
+      );
 
       return res.status(401).json({
         success: false,
@@ -82,20 +85,19 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // Reset login attempts on successful login
-    await loginAttemptsRef.set({ count: 0, lastAttempt: null });
+    await loginAttemptsCollection.deleteOne({ mail }); 
 
-    // Login successful
-    await db.collection("users").doc(mail).update({
-      lastLogin: new Date()
-    });
+    await userCollection.updateOne(
+      { mail },
+      { $set: { lastLogin: new Date() } }
+    );
 
     return res.status(200).json({
       success: true,
       message: "Giriş başarılı.",
       user: {
-        uid: userData.uid,
-        name: userData.name,
+        uid: user.uid,
+        name: user.name,
         email: mail
       }
     });
