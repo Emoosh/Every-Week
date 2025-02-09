@@ -2,7 +2,9 @@ import express from "express";
 import argon2 from "argon2";
 import validator from "validator";
 import { connectDB } from "../../Database/db.js"; // MongoDB bağlantısı için
-
+import { generateToken } from "./jwt.js"
+;import dotenv from "dotenv";
+dotenv.config();
 const router = express.Router();
 
 router.post("/", async (req, res) => {
@@ -92,9 +94,12 @@ router.post("/", async (req, res) => {
       { $set: { lastLogin: new Date() } }
     );
 
+    const token = generateToken(user); 
+
     return res.status(200).json({
       success: true,
       message: "Giriş başarılı.",
+      token,
       user: {
         uid: user.uid,
         name: user.name,

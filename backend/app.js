@@ -10,7 +10,8 @@ import session from "express-session";
 //Routes
 import loginRoute from './routes/controllers/login.js'
 import registerRoute from './routes/controllers/register.js'
-
+import authMiddleware from './middleware/authMiddleware.js';
+import profileRoute from  './routes/profile/profile.js'
 //.env
 import dotenv from "dotenv";
 dotenv.config();
@@ -62,6 +63,7 @@ app.get("/", (req, res) => {
   res.sendFile(location);
 });
 
+app.use('/profile', authMiddleware, profileRoute)
 app.use('/login', loginRoute);
 app.use('/register', registerRoute);
 /* //Route -> users Log in/Sign up
