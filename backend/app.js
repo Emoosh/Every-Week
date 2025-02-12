@@ -8,10 +8,16 @@ import morgan from "morgan";
 import session from "express-session";
 
 //Routes
+
+//Login & Signup Routes
 import loginRoute from './routes/controllers/login.js'
 import registerRoute from './routes/controllers/register.js'
 import authMiddleware from './middleware/authMiddleware.js';
 import profileRoute from  './routes/profile/profile.js'
+
+//RIOT information Routes
+
+import RiotRoute from './routes/profile/profile_information_providers/riot_info.js'
 //.env
 import dotenv from "dotenv";
 dotenv.config();
@@ -66,11 +72,10 @@ app.get("/", (req, res) => {
 app.use('/profile', authMiddleware, profileRoute)
 app.use('/login', loginRoute);
 app.use('/register', registerRoute);
-/* //Route -> users Log in/Sign up
-app.use('/riot/info',riotInfoRoute);
-app.use('/users/register',usersRegisterRoutes);
-app.use('/users/login',usersLoginRoute);
- */
+
+
+app.use('/riot_information', RiotRoute);
+
 
 app.listen(PORT, () => {
   console.log(`Server is running on http://localhost:${PORT}`);
