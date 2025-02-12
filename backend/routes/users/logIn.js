@@ -1,4 +1,4 @@
-import { auth, db } from "../../firebaseAdmin.js";
+/* import { auth, db } from "../../Database/firebaseAdmin.js";
 import express from "express";
 import argon2 from "argon2";
 import validator from "validator";
@@ -90,6 +90,7 @@ router.post("/", async (req, res) => {
       lastLogin: new Date()
     });
 
+
     return res.status(200).json({
       success: true,
       message: "Giriş başarılı.",
@@ -110,4 +111,4 @@ router.post("/", async (req, res) => {
   }
 });
 
-export default router;
+export default router; */
