@@ -7,15 +7,36 @@ import { useAuth } from '../context/AuthContext'
 export default function Navbar() {
     const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
     const { isAuthenticated, user, logout } = useAuth();
+    
+    // Debug için kullanıcı bilgilerini konsola yaz
+    console.log("Navbar render - User:", user);
+    console.log("Navbar render - isAuthenticated:", isAuthenticated);
+    console.log("User role:", user?.role);
+    console.log("Role check:", user && user.role === 'admin');
 
-    // Define navigation based on authentication status
+    // Define navigation based on authentication status and role
     const navigation = [
         { name: 'Ana Sayfa', to: '/' },
         { name: 'Turnuvalar', to: '/#tournaments' },
     ];
 
     if (isAuthenticated) {
+        navigation.push({ name: 'Okul Turnuvaları', to: '/tournaments' });
         navigation.push({ name: 'Profil', to: '/profile' });
+        
+        // Admin specific links - daha esnek kontrol
+        const isAdmin = user && 
+                       (user.role === 'admin' || 
+                        user.role === 'Admin' || 
+                        (typeof user.role === 'string' && user.role.toLowerCase() === 'admin'));
+        
+        console.log("Is admin check:", isAdmin);
+        
+        if (isAdmin) {
+            console.log("Admin menüleri ekleniyor");
+            navigation.push({ name: 'Okul Yetkilileri', to: '/admin/school-agents' });
+            navigation.push({ name: 'Öğrenci Yönetimi', to: '/admin/students' });
+        }
     }
 
     const handleLogout = async () => {

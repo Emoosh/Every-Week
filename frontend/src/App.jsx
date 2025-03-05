@@ -6,6 +6,10 @@ import About from "./sections/About.jsx";
 import TournamentBracket from "./sections/Tournements.jsx";
 import LoginRegisterPage from "./sections/Login.jsx";
 import Profile from "./sections/Profile.jsx";
+import TournamentCreate from "./components/TournamentCreate.jsx";
+import TournamentList from "./components/TournamentList.jsx";
+import SchoolAgentsList from "./components/SchoolAgentsList.jsx";
+import StudentsList from "./components/StudentsList.jsx";
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/AuthContext';
 
@@ -49,6 +53,38 @@ const App = () => {
                           element={
                             <ProtectedRoute>
                               <Profile />
+                            </ProtectedRoute>
+                          } 
+                        />
+                        <Route 
+                          path="/tournaments" 
+                          element={
+                            <ProtectedRoute>
+                              <TournamentList />
+                            </ProtectedRoute>
+                          } 
+                        />
+                        <Route 
+                          path="/tournament/create" 
+                          element={
+                            <ProtectedRoute>
+                              <TournamentCreate />
+                            </ProtectedRoute>
+                          } 
+                        />
+                        <Route 
+                          path="/admin/school-agents" 
+                          element={
+                            <ProtectedRoute>
+                              <SchoolAgentsList />
+                            </ProtectedRoute>
+                          } 
+                        />
+                        <Route 
+                          path="/admin/students" 
+                          element={
+                            <ProtectedRoute>
+                              <StudentsList />
                             </ProtectedRoute>
                           } 
                         />

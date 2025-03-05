@@ -32,9 +32,11 @@ router.get("/", authMiddleware, async (req, res) => {
       message: "Profil bilgileri başarıyla getirildi.",
       user: {
         uid: user._id,
-        name: user.name,
-        email: user.email,
-        createdAt: user.createdAt
+        name: user.name || user.username,
+        email: user.email || user.e_mail,
+        createdAt: user.createdAt,
+        role: user.role || "user",        // Role bilgisini ekliyoruz
+        schoolName: user.schoolName       // Okul bilgisini ekliyoruz
       },
       lolInfo: lolInfo || null // Kullanıcının LoL bilgileri varsa ekle, yoksa null döndür
     });

@@ -13,10 +13,15 @@ import session from "express-session";
 import loginRoute from './routes/controllers/login.js'
 import registerRoute from './routes/controllers/register.js'
 import authMiddleware from './middleware/authMiddleware.js';
-import profileRoute from  './routes/profile/profile.js'
+import profileRoute from './routes/profile/profile.js'
+
+//Tournament Routes
+import tournamentRoute from './routes/tournament/tournament.js'
+
+//Admin Routes
+import adminRoute from './routes/admin/admin.js'
 
 //RIOT information Routes
-
 import RiotRoute from './routes/profile/profile_information_providers/riot_info.js'
 //.env
 import dotenv from "dotenv";
@@ -89,6 +94,8 @@ app.use('/profile', authMiddleware, profileRoute);
 app.use('/login', loginRoute);
 app.use('/register', registerRoute);
 app.use('/riot_information', RiotRoute);
+app.use('/tournament', tournamentRoute);
+app.use('/admin', adminRoute);
 
 // Handle SPA routing - always return the main app for client-side routing
 app.get('*', (req, res) => {

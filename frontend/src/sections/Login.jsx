@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
 import { useNavigate, Navigate } from "react-router-dom";
+import { getSchoolFromEmail, isValidUniversityEmail } from "../utils/schoolUtils";
 
 // Animation variants
 const formVariants = {
@@ -11,13 +12,15 @@ const formVariants = {
 };
 
 const LoginRegisterPage = () => {
-    const { login, register, isAuthenticated, loading: authLoading } = useAuth();
+    const { login, register, verifyOTP, requestNewOTP, isAuthenticated, loading: authLoading } = useAuth();
     const navigate = useNavigate();
     const [isRegister, setIsRegister] = useState(false);
+    const [showOTPVerification, setShowOTPVerification] = useState(false);
     const [formData, setFormData] = useState({
         username: '',
         email: '',
-        password: ''
+        password: '',
+        otpCode: ''
     });
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
@@ -30,6 +33,7 @@ const LoginRegisterPage = () => {
 
     const toggleForm = () => {
         setIsRegister(!isRegister);
+        setShowOTPVerification(false);
         setError('');
         setSuccess('');
     };
@@ -41,6 +45,39 @@ const LoginRegisterPage = () => {
         });
     };
 
+    const handleRequestNewOTP = async () => {
+        setError('');
+        setLoading(true);
+        try {
+            await requestNewOTP(formData.email);
+            setSuccess('Yeni doğrulama kodu e-posta adresinize gönderildi.');
+        } catch (err) {
+            setError(err.message || 'Yeni kod gönderilirken bir hata oluştu');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleVerifyOTP = async (e) => {
+        e.preventDefault();
+        setError('');
+        setSuccess('');
+        setLoading(true);
+
+        try {
+            await verifyOTP(formData.email, formData.otpCode);
+            setSuccess('Hesabınız başarıyla doğrulandı! Giriş yapabilirsiniz.');
+            setTimeout(() => {
+                setShowOTPVerification(false);
+                setIsRegister(false);
+            }, 1500);
+        } catch (err) {
+            setError(err.message || 'Doğrulama kodu geçersiz');
+        } finally {
+            setLoading(false);
+        }
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
         setError('');
@@ -49,22 +86,30 @@ const LoginRegisterPage = () => {
 
         try {
             if (isRegister) {
-                // Register user
+                // E-posta adresi geçerli bir üniversite adresi mi kontrol et
+                const schoolName = getSchoolFromEmail(formData.email);
+                if (!schoolName) {
+                    setError('Lütfen geçerli bir üniversite e-posta adresi kullanın.');
+                    setLoading(false);
+                    return;
+                }
+
+                // Register user with school name detected from email
                 await register(
                     formData.username,
                     formData.email, 
-                    formData.password
+                    formData.password,
+                    schoolName
                 );
-                setSuccess('Kayıt başarılı! Giriş yapabilirsiniz.');
-                setTimeout(() => {
-                    setIsRegister(false);
-                }, 1500);
+                setSuccess('Kayıt başarılı! Lütfen e-posta adresinize gönderilen doğrulama kodunu girin.');
+                setShowOTPVerification(true);
             } else {
                 // Login user
-                await login(
+                const loginResponse = await login(
                     formData.email,
                     formData.password
                 );
+                console.log("Login işlemi başarılı, dönen veri:", loginResponse);
                 setSuccess('Giriş başarılı! Yönlendiriliyorsunuz...');
                 // Navigate to profile after successful login
                 setTimeout(() => {
@@ -105,7 +150,57 @@ const LoginRegisterPage = () => {
                 )}
 
                 <AnimatePresence mode="wait">
-                    {isRegister ? (
+                    {isRegister && showOTPVerification ? (
+                        <motion.div
+                            key="otp-verification"
+                            variants={formVariants}
+                            initial="initial"
+                            animate="animate"
+                            exit="exit"
+                            transition={{ duration: 0.5 }}
+                        >
+                            <h2 className="text-2xl font-bold text-white mb-4">Doğrulama Kodu</h2>
+                            <form className="space-y-4" onSubmit={handleVerifyOTP}>
+                                <p className="text-gray-300 mb-4">
+                                    E-posta adresinize gönderilen doğrulama kodunu girin.
+                                </p>
+                                <input
+                                    type="text"
+                                    name="otpCode"
+                                    placeholder="Doğrulama Kodu"
+                                    className="w-full p-3 rounded bg-gray-700 text-white placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                                    value={formData.otpCode}
+                                    onChange={handleChange}
+                                    required
+                                />
+                                <div className="flex flex-col space-y-2">
+                                    <button
+                                        type="submit"
+                                        className="w-full py-3 rounded bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-bold disabled:opacity-50"
+                                        disabled={loading}
+                                    >
+                                        {loading ? 'Doğrulanıyor...' : 'Doğrula'}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        onClick={handleRequestNewOTP}
+                                        className="w-full py-2 rounded bg-gray-600 hover:bg-gray-700 transition-colors text-white text-sm font-medium disabled:opacity-50"
+                                        disabled={loading}
+                                    >
+                                        Yeni Kod Gönder
+                                    </button>
+                                </div>
+                            </form>
+                            <p className="mt-4 text-gray-300">
+                                <button
+                                    onClick={toggleForm}
+                                    className="text-indigo-400 hover:underline"
+                                >
+                                    Giriş Yap
+                                </button>
+                            </p>
+                        </motion.div>
+                    ) : isRegister ? (
                         <motion.div
                             key="register"
                             variants={formVariants}
@@ -143,6 +238,9 @@ const LoginRegisterPage = () => {
                                     onChange={handleChange}
                                     required
                                 />
+                                <p className="text-sm text-gray-300">
+                                    *Lütfen üniversite e-posta adresinizi kullanın (@edu.tr uzantılı)
+                                </p>
                                 <button
                                     type="submit"
                                     className="w-full py-3 rounded bg-indigo-600 hover:bg-indigo-700 transition-colors text-white font-bold disabled:opacity-50"

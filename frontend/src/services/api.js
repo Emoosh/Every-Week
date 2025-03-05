@@ -4,11 +4,19 @@ const API_URL = 'http://localhost:3000';
 async function fetchAPI(endpoint, options = {}) {
   const url = `${API_URL}${endpoint}`;
   
+  // Get the stored token if available
+  const token = localStorage.getItem('token');
+  
   // Set default headers
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
   };
+  
+  // Add authorization header if token exists
+  if (token && !headers.Authorization) {
+    headers.Authorization = `Bearer ${token}`;
+  }
 
   // Include credentials for cookies
   const config = {
@@ -41,15 +49,36 @@ export const authService = {
   login: async (email, password) => {
     return fetchAPI('/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ mail: email, password }),
     });
   },
   
   // Register user
-  register: async (username, email, password) => {
+  register: async (username, email, password, schoolName) => {
     return fetchAPI('/register', {
       method: 'POST',
-      body: JSON.stringify({ username, email, password }),
+      body: JSON.stringify({ 
+        username, 
+        mail: email, 
+        password, 
+        schoolName 
+      }),
+    });
+  },
+  
+  // Verify OTP code
+  verifyOTP: async (email, otpCode) => {
+    return fetchAPI('/register/verifyOTP', {
+      method: 'POST',
+      body: JSON.stringify({ mail: email, token: otpCode }),
+    });
+  },
+  
+  // Request new OTP code
+  requestNewOTP: async (email) => {
+    return fetchAPI('/register/requestOTP', {
+      method: 'POST',
+      body: JSON.stringify({ mail: email }),
     });
   },
   
@@ -71,7 +100,94 @@ export const riotService = {
   }
 };
 
+// Tournament services
+export const tournamentService = {
+  // Get school tournaments
+  getSchoolTournaments: async (schoolName) => {
+    return fetchAPI(`/tournament/school/${schoolName}`);
+  },
+  
+  // Get available tournaments for current user
+  getAvailableTournaments: async () => {
+    return fetchAPI('/tournament/available');
+  },
+  
+  // Create tournament (school agent only)
+  createTournament: async (tournamentData) => {
+    return fetchAPI('/tournament/create', {
+      method: 'POST',
+      body: JSON.stringify(tournamentData),
+    });
+  },
+  
+  // Create multi-school tournament (school agent only)
+  createMultiSchoolTournament: async (collaboratingAgents, tournamentData) => {
+    return fetchAPI('/tournament/create-multi', {
+      method: 'POST',
+      body: JSON.stringify({ collaboratingAgents, tournamentData }),
+    });
+  },
+  
+  // Register for tournament
+  registerForTournament: async (tournamentId, teamName = null, teamMembers = []) => {
+    return fetchAPI(`/tournament/register/${tournamentId}`, {
+      method: 'POST',
+      body: JSON.stringify({ teamName, teamMembers }),
+    });
+  },
+  
+  // Get school agents for tournaments
+  getSchoolAgents: async (schoolName) => {
+    return fetchAPI(`/tournament/agents/${schoolName}`);
+  }
+};
+
+// Admin services
+export const adminService = {
+  // Create admin account
+  createAdmin: async (email, password, schoolName) => {
+    return fetchAPI('/admin/create-admin', {
+      method: 'POST',
+      body: JSON.stringify({ e_mail: email, password, schoolName }),
+    });
+  },
+  
+  // Set user as school agent
+  setSchoolAgent: async (userId, schoolName) => {
+    return fetchAPI('/admin/set-school-agent', {
+      method: 'POST',
+      body: JSON.stringify({ userId, schoolName }),
+    });
+  },
+  
+  // Get all school agents
+  getSchoolAgents: async (schoolName = null) => {
+    const url = schoolName 
+      ? `/admin/school-agents?schoolName=${encodeURIComponent(schoolName)}`
+      : '/admin/school-agents';
+    return fetchAPI(url);
+  },
+  
+  // Get all students
+  getStudents: async (schoolName = null) => {
+    const url = schoolName 
+      ? `/admin/students?schoolName=${encodeURIComponent(schoolName)}`
+      : '/admin/students';
+    return fetchAPI(url);
+  },
+  
+  // Create test student
+  createTestStudent: async (email, schoolName) => {
+    return fetchAPI('/admin/create-test-student', {
+      method: 'POST',
+      body: JSON.stringify({ e_mail: email, schoolName }),
+    });
+  }
+};
+
 export default {
   authService,
-  riotService
+  riotService,
+  tournamentService,
+  adminService
 };
