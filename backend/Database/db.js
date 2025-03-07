@@ -471,6 +471,228 @@ export async function createMultiSchoolTournament(agentIds, tournamentData) {
   }
 }
 
+/**
+ * Kullanıcının oyun hesaplarını kaydet
+ * @param {string} userId - Kullanıcı ID'si
+ * @param {Object} gameAccounts - Oyun hesapları
+ * @param {Object} gameAccounts.league - League of Legends hesap bilgileri
+ * @param {string} gameAccounts.league.gameName - Oyun içi kullanıcı adı
+ * @param {string} gameAccounts.league.tagLine - Riot tag'i (#TR1, #EUW, vb.)
+ * @param {Object} gameAccounts.valorant - Valorant hesap bilgileri
+ * @param {string} gameAccounts.valorant.gameName - Oyun içi kullanıcı adı
+ * @param {string} gameAccounts.valorant.tagLine - Riot tag'i
+ */
+export async function saveGameAccounts(userId, gameAccounts) {
+  try {
+    const database = await connectDB();
+    
+    // Önce mevcut kayıt var mı kontrol et
+    const existingAccount = await database.collection("game_accounts").findOne({ userId });
+    
+    if (existingAccount) {
+      // Güncelle
+      const result = await database.collection("game_accounts").updateOne(
+        { userId },
+        { $set: {
+          ...gameAccounts,
+          updatedAt: new Date()
+        }}
+      );
+      
+      console.log("✅ Game accounts updated:", result.modifiedCount);
+      return { success: true, message: "Oyun hesapları güncellendi" };
+    } else {
+      // Yeni kayıt oluştur
+      const newGameAccount = {
+        userId,
+        ...gameAccounts,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      };
+      
+      const result = await database.collection("game_accounts").insertOne(newGameAccount);
+      console.log("✅ Game accounts created with ID:", result.insertedId);
+      return { success: true, message: "Oyun hesapları kaydedildi" };
+    }
+  } catch (error) {
+    console.error("❌ Save game accounts error:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Kullanıcının oyun hesaplarını getir
+ * @param {string} userId - Kullanıcı ID'si
+ */
+export async function getGameAccounts(userId) {
+  try {
+    const database = await connectDB();
+    
+    const gameAccounts = await database.collection("game_accounts").findOne({ userId });
+    return gameAccounts;
+  } catch (error) {
+    console.error("❌ Get game accounts error:", error);
+    return null;
+  }
+}
+
+/**
+ * Kullanıcının son oyun verilerini kaydet
+ * @param {string} userId - Kullanıcı ID'si
+ * @param {string} gameType - Oyun türü ('league', 'valorant', vb.)
+ * @param {Object} matchData - Maç verileri
+ */
+export async function saveGameMatchData(userId, gameType, matchData) {
+  try {
+    const database = await connectDB();
+    
+    const newMatchData = {
+      userId,
+      gameType,
+      matchData,
+      createdAt: new Date()
+    };
+    
+    const result = await database.collection("game_match_history").insertOne(newMatchData);
+    console.log(`✅ ${gameType} match data saved with ID:`, result.insertedId);
+    return { success: true, matchId: result.insertedId };
+  } catch (error) {
+    console.error(`❌ Save ${gameType} match data error:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * Kullanıcının son oyun verilerini getir
+ * @param {string} userId - Kullanıcı ID'si
+ * @param {string} gameType - Oyun türü ('league', 'valorant', vb.)
+ * @param {number} limit - Kaç maç getirileceği
+ */
+export async function getGameMatchHistory(userId, gameType, limit = 10) {
+  try {
+    const database = await connectDB();
+    
+    const query = { userId };
+    if (gameType) {
+      query.gameType = gameType;
+    }
+    
+    const matches = await database.collection("game_match_history")
+      .find(query)
+      .sort({ createdAt: -1 })
+      .limit(limit)
+      .toArray();
+      
+    return matches;
+  } catch (error) {
+    console.error("❌ Get game match history error:", error);
+    return [];
+  }
+}
+
+/**
+ * Kullanıcının herkese açık profil bilgilerini getir
+ * @param {string} userId - Kullanıcı ID'si
+ */
+export async function getPublicUserProfile(userId) {
+  try {
+    const database = await connectDB();
+    
+    // Kullanıcı bilgilerini al
+    const user = await database.collection("users").findOne(
+      { _id: userId },
+      { projection: { password: 0 } } // Şifreyi dahil etme
+    );
+    
+    if (!user) {
+      return null;
+    }
+    
+    // Oyun hesaplarını al
+    const gameAccounts = await database.collection("game_accounts").findOne({ userId });
+    
+    // Oyun istatistiklerini al
+    const lolInfo = await database.collection("Lol-informations").findOne({ userId });
+    
+    // Son maçları al (league ve valorant)
+    const recentMatches = {
+      league: [],
+      valorant: []
+    };
+    
+    // League of Legends maçları
+    const leagueMatches = await database.collection("game_match_history")
+      .find({ userId, gameType: "league" })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .toArray();
+    
+    if (leagueMatches && leagueMatches.length > 0) {
+      recentMatches.league = leagueMatches;
+    }
+    
+    // Valorant maçları
+    const valorantMatches = await database.collection("game_match_history")
+      .find({ userId, gameType: "valorant" })
+      .sort({ createdAt: -1 })
+      .limit(5)
+      .toArray();
+    
+    if (valorantMatches && valorantMatches.length > 0) {
+      recentMatches.valorant = valorantMatches;
+    }
+    
+    // Tüm bilgileri birleştir
+    return {
+      user: {
+        _id: user._id,
+        username: user.username || "",
+        schoolName: user.schoolName || "",
+        e_mail: user.e_mail || user.mail || "",
+        role: user.role || "user"
+      },
+      gameAccounts: gameAccounts || { league: null, valorant: null },
+      riotInfo: lolInfo || null,
+      recentMatches
+    };
+    
+  } catch (error) {
+    console.error("❌ Get public user profile error:", error);
+    return null;
+  }
+}
+
+/**
+ * Kullanıcının oyun istatistiklerini güncelle/kaydet (Riot API'den)
+ * @param {string} userId - Kullanıcı ID'si
+ * @param {string} gameType - Oyun türü ('league', 'valorant')
+ * @param {Object} statsData - Oyun istatistikleri
+ */
+export async function saveGameStats(userId, gameType, statsData) {
+  try {
+    const database = await connectDB();
+    
+    // Stats collection belirle
+    const collectionName = gameType === 'league' ? 'Lol-informations' : 'valorant-informations';
+    
+    const result = await database.collection(collectionName).updateOne(
+      { userId },
+      { 
+        $set: {
+          ...statsData,
+          lastUpdated: new Date()
+        }
+      },
+      { upsert: true }
+    );
+    
+    return { success: true, message: `${gameType} stats updated successfully` };
+  } catch (error) {
+    console.error(`❌ Save ${gameType} stats error:`, error);
+    return { success: false, error: error.message };
+  }
+}
+
 //Emojiler aşşşırı komik
 process.on("SIGINT", async () => {
   console.log("🔌 Closing MongoDB connection...");

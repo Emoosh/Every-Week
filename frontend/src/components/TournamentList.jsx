@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { tournamentService } from '../services/api';
+import { tournamentService, gameAccountsService } from '../services/api';
 
 const TournamentList = () => {
   const { user } = useAuth();
@@ -9,9 +9,27 @@ const TournamentList = () => {
   const [error, setError] = useState('');
   const [registrationStatus, setRegistrationStatus] = useState({});
   const [selectedTab, setSelectedTab] = useState('school'); // 'school' veya 'available'
+  const [gameAccounts, setGameAccounts] = useState(null);
 
   useEffect(() => {
     fetchTournaments();
+    
+    // Oyun hesaplarını getir
+    const fetchGameAccounts = async () => {
+      try {
+        const result = await gameAccountsService.getGameAccounts();
+        if (result.success) {
+          setGameAccounts(result.accounts);
+        }
+      } catch (err) {
+        console.log('No game accounts found', err);
+        // Hata mesajı gösterme - yeni kullanıcı olabilir
+      }
+    };
+    
+    if (user) {
+      fetchGameAccounts();
+    }
   }, [user, selectedTab]);
 
   const fetchTournaments = async () => {
@@ -44,7 +62,38 @@ const TournamentList = () => {
     }
   };
 
-  const registerForTournament = async (tournamentId) => {
+  // Turnuva için gerekli oyun hesabı var mı kontrol et
+  const checkRequiredGameAccount = (tournament) => {
+    if (!gameAccounts) {
+      return false;
+    }
+    
+    const gameType = tournament.game.toLowerCase();
+    
+    // League of Legends için kontrol
+    if (gameType.includes('league') || gameType.includes('lol')) {
+      return !!gameAccounts.league;
+    }
+    
+    // Valorant için kontrol
+    if (gameType.includes('valorant') || gameType.includes('valo')) {
+      return !!gameAccounts.valorant;
+    }
+    
+    // Diğer oyunlar için varsayılan olarak true dön (şimdilik)
+    return true;
+  };
+
+  const registerForTournament = async (tournamentId, tournament) => {
+    // Önce oyun hesabı kontrolü yap
+    if (!checkRequiredGameAccount(tournament)) {
+      setError(`Bu turnuvaya katılmak için ${tournament.game} hesabınızı profilinize eklemelisiniz.`);
+      setTimeout(() => {
+        setError('');
+      }, 5000);
+      return;
+    }
+    
     setRegistrationStatus(prev => ({
       ...prev,
       [tournamentId]: 'loading'
@@ -63,6 +112,10 @@ const TournamentList = () => {
           ...prev,
           [tournamentId]: 'error'
         }));
+        setError(data.message || 'Turnuvaya kayıt sırasında bir hata oluştu.');
+        setTimeout(() => {
+          setError('');
+        }, 5000);
       }
     } catch (error) {
       console.error('Error registering for tournament:', error);
@@ -70,6 +123,10 @@ const TournamentList = () => {
         ...prev,
         [tournamentId]: 'error'
       }));
+      setError('Sunucu ile bağlantı sırasında bir hata oluştu.');
+      setTimeout(() => {
+        setError('');
+      }, 5000);
     }
   };
 
@@ -229,7 +286,7 @@ const TournamentList = () => {
                   </button>
                 ) : (
                   <button 
-                    onClick={() => registerForTournament(tournament._id)}
+                    onClick={() => registerForTournament(tournament._id, tournament)}
                     className="w-full bg-blue-600 hover:bg-blue-700 text-white p-2 rounded-md"
                   >
                     Turnuvaya Katıl

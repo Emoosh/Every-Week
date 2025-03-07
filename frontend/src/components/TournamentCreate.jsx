@@ -4,19 +4,21 @@ import { useAuth } from '../context/AuthContext';
 const TournamentCreate = () => {
   const { user } = useAuth();
   const [formData, setFormData] = useState({
-    name: '',
+    title: '',
     description: '',
     startDate: '',
     endDate: '',
+    registrationDeadline: '', // Kayıt son tarihi - yeni eklendi
     prizePool: '',
-    gameType: 'League of Legends' // Default game
+    game: 'League of Legends', // gameType -> game olarak değiştirildi
+    participantLimit: 20 // Katılımcı sınırı - yeni eklendi, varsayılan değer 20
   });
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState('');
 
   // Check if user is a school agent
-  if (!user || user.role !== 'schoolAgent') {
+  if (!user || user.role !== 'school_agent') {
     return (
       <div className="bg-gray-800 p-6 rounded-lg shadow-lg text-center">
         <h2 className="text-2xl font-bold text-red-500 mb-4">Yetkisiz Erişim</h2>
@@ -54,12 +56,14 @@ const TournamentCreate = () => {
       if (data.success) {
         setSuccess(true);
         setFormData({
-          name: '',
+          title: '',
           description: '',
           startDate: '',
           endDate: '',
+          registrationDeadline: '',
           prizePool: '',
-          gameType: 'League of Legends'
+          game: 'League of Legends',
+          participantLimit: 20
         });
       } else {
         setError(data.message || 'Turnuva oluşturulurken bir hata oluştu.');
@@ -93,14 +97,14 @@ const TournamentCreate = () => {
 
       <form onSubmit={handleSubmit}>
         <div className="mb-4">
-          <label className="block text-gray-300 mb-2" htmlFor="name">
+          <label className="block text-gray-300 mb-2" htmlFor="title">
             Turnuva Adı
           </label>
           <input
             type="text"
-            id="name"
-            name="name"
-            value={formData.name}
+            id="title"
+            name="title"
+            value={formData.title}
             onChange={handleChange}
             required
             className="w-full p-3 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
@@ -121,7 +125,7 @@ const TournamentCreate = () => {
           />
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-gray-300 mb-2" htmlFor="startDate">
               Başlangıç Tarihi
@@ -150,9 +154,23 @@ const TournamentCreate = () => {
               className="w-full p-3 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
+          <div>
+            <label className="block text-gray-300 mb-2" htmlFor="registrationDeadline">
+              Son Kayıt Tarihi
+            </label>
+            <input
+              type="date"
+              id="registrationDeadline"
+              name="registrationDeadline"
+              value={formData.registrationDeadline}
+              onChange={handleChange}
+              required
+              className="w-full p-3 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
           <div>
             <label className="block text-gray-300 mb-2" htmlFor="prizePool">
               Ödül Havuzu (TL)
@@ -168,13 +186,29 @@ const TournamentCreate = () => {
             />
           </div>
           <div>
-            <label className="block text-gray-300 mb-2" htmlFor="gameType">
+            <label className="block text-gray-300 mb-2" htmlFor="participantLimit">
+              Katılımcı Sınırı
+            </label>
+            <input
+              type="number"
+              id="participantLimit"
+              name="participantLimit"
+              value={formData.participantLimit}
+              onChange={handleChange}
+              required
+              min="2"
+              max="100"
+              className="w-full p-3 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+          <div>
+            <label className="block text-gray-300 mb-2" htmlFor="game">
               Oyun
             </label>
             <select
-              id="gameType"
-              name="gameType"
-              value={formData.gameType}
+              id="game"
+              name="game"
+              value={formData.game}
               onChange={handleChange}
               required
               className="w-full p-3 bg-gray-700 text-white rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"

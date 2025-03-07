@@ -17,6 +17,7 @@ router.post("/", authMiddleware, async (req, res) => {
     return res.status(400).json({ error: "Game name and tag must be entered!" });
   }
 
+
   try {
     const puidData = await findPUID(gameName, tagLine);
 

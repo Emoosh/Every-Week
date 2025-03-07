@@ -100,6 +100,30 @@ export const riotService = {
   }
 };
 
+// Game accounts services
+export const gameAccountsService = {
+  // Save user's game accounts
+  saveGameAccounts: async (accounts) => {
+    return fetchAPI('/game-accounts/save-accounts', {
+      method: 'POST',
+      body: JSON.stringify(accounts),
+    });
+  },
+  
+  // Get user's game accounts
+  getGameAccounts: async () => {
+    return fetchAPI('/game-accounts/accounts');
+  },
+  
+  // Get user's match history
+  getMatchHistory: async (gameType = null, limit = 10) => {
+    const endpoint = gameType 
+      ? `/game-accounts/match-history/${gameType}?limit=${limit}`
+      : `/game-accounts/match-history?limit=${limit}`;
+    return fetchAPI(endpoint);
+  }
+};
+
 // Tournament services
 export const tournamentService = {
   // Get school tournaments
@@ -188,6 +212,7 @@ export const adminService = {
 export default {
   authService,
   riotService,
+  gameAccountsService,
   tournamentService,
   adminService
 };

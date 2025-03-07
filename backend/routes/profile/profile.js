@@ -1,6 +1,6 @@
 import express from "express";
 import authMiddleware from "../../middleware/authMiddleware.js";
-import { connectDB } from "../../Database/db.js";
+import { connectDB, getPublicUserProfile } from "../../Database/db.js";
 import { ObjectId } from "mongodb";  
 
 const router = express.Router();
@@ -43,6 +43,47 @@ router.get("/", authMiddleware, async (req, res) => {
 
   } catch (error) {
     console.error("Profil hatası:", error);
+    res.status(500).json({
+      success: false,
+      message: "Profil bilgileri alınırken bir hata oluştu."
+    });
+  }
+});
+
+// Kullanıcının herkese açık profil bilgilerini getir (auth gerektirmez)
+router.get("/public/:userId", async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    // ObjectId formatına dönüştür
+    let objectId;
+    try {
+      objectId = new ObjectId(userId);
+    } catch (error) {
+      return res.status(400).json({
+        success: false,
+        message: "Geçersiz kullanıcı ID formatı."
+      });
+    }
+    
+    // Herkese açık profil bilgilerini getir
+    const profileData = await getPublicUserProfile(objectId);
+    
+    if (!profileData) {
+      return res.status(404).json({
+        success: false,
+        message: "Kullanıcı bulunamadı."
+      });
+    }
+    
+    // Herkese açık profil verilerini döndür
+    res.status(200).json({
+      success: true,
+      profile: profileData
+    });
+    
+  } catch (error) {
+    console.error("Herkese açık profil hatası:", error);
     res.status(500).json({
       success: false,
       message: "Profil bilgileri alınırken bir hata oluştu."

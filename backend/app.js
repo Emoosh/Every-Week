@@ -14,6 +14,7 @@ import loginRoute from './routes/controllers/login.js'
 import registerRoute from './routes/controllers/register.js'
 import authMiddleware from './middleware/authMiddleware.js';
 import profileRoute from './routes/profile/profile.js'
+import gameAccountsRoute from './routes/profile/game-accounts.js'
 
 //Tournament Routes
 import tournamentRoute from './routes/tournament/tournament.js'
@@ -91,6 +92,7 @@ app.post('/logout', (req, res) => {
 });
 
 app.use('/profile', authMiddleware, profileRoute);
+app.use('/game-accounts', gameAccountsRoute);
 app.use('/login', loginRoute);
 app.use('/register', registerRoute);
 app.use('/riot_information', RiotRoute);
