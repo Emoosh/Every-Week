@@ -43,7 +43,11 @@ router.post("/", async (req, res) => {
     }
 
     // 📌 3. Kullanıcı Var mı?
-    const user = await userCollection.findOne({ mail });
+    // İlk olarak e_mail ile ara, bulamazsa mail ile ara
+    let user = await userCollection.findOne({ e_mail: mail });
+    if (!user) {
+      user = await userCollection.findOne({ mail });
+    }
 
     if (!user) {
       // Başarısız giriş denemelerini artır
@@ -62,7 +66,7 @@ router.post("/", async (req, res) => {
       });
     }
 
-    // 📌 4. Şifre Doğrulama (argon2 ile)
+    // 📌 4. Şifre Doğrulama (düz metin veya argon2 ile)
     if (!user.password) {
       return res.status(401).json({
         success: false,
@@ -70,7 +74,15 @@ router.post("/", async (req, res) => {
       });
     }
 
-    const isPasswordValid = await argon2.verify(user.password, password);
+    // Check if password needs to be verified with argon2 or is plain text
+    let isPasswordValid = false;
+    
+    if (user.password.startsWith('$argon2')) {
+      isPasswordValid = await argon2.verify(user.password, password);
+    } else {
+      isPasswordValid = user.password === password;
+    }
+    
     if (!isPasswordValid) {
       await loginAttemptsCollection.updateOne(
         { mail },
@@ -90,7 +102,7 @@ router.post("/", async (req, res) => {
     await loginAttemptsCollection.deleteOne({ mail }); 
 
     await userCollection.updateOne(
-      { mail },
+      { _id: user._id },
       { $set: { lastLogin: new Date() } }
     );
 
@@ -101,9 +113,11 @@ router.post("/", async (req, res) => {
       message: "Giriş başarılı.",
       token,
       user: {
-        uid: user.uid,
-        name: user.name,
-        email: mail
+        _id: user._id,
+        username: user.username,
+        email: user.e_mail || mail,
+        schoolName: user.schoolName,
+        role: user.role
       }
     });
 

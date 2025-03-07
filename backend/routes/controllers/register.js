@@ -9,12 +9,26 @@ const MAX_OTP_DURATION = 30; // OTP geçerlilik süresi (saniye cinsinden)
 
 router.post("/", async (req, res) => {
   try {
-    const { mail, password } = req.body;
+    const { mail, password, username, schoolName } = req.body;
 
     if (!mail || !password) {
       return res.status(400).json({
         success: false,
         message: "E-posta ve şifre zorunludur.",
+      });
+    }
+    
+    if (!username) {
+      return res.status(400).json({
+        success: false,
+        message: "Kullanıcı adı zorunludur.",
+      });
+    }
+
+    if (!schoolName) {
+      return res.status(400).json({
+        success: false,
+        message: "Okul bilgisi zorunludur.",
       });
     }
 
@@ -48,7 +62,9 @@ router.post("/", async (req, res) => {
     // Bekleyen kullanıcı olarak veritabanına kaydet
     await pendingUsersCollection.insertOne({
       mail,
+      username,
       password,
+      schoolName,
       otp: token,
       createdAt: new Date(),
     });
@@ -157,7 +173,9 @@ router.post("/verifyOTP", async (req, res) => {
     // Kullanıcıyı kaydet ve pendingUsers'tan sil
     await usersCollection.insertOne({
       mail,
+      username: pendingUser.username,
       password: hashedPassword,
+      schoolName: pendingUser.schoolName,
       createdAt: new Date(),
     });
 

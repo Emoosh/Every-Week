@@ -1,0 +1,25 @@
+@import "tailwindcss";
+
+* {
+  scroll-behavior: smooth;
+}
+
+.body {
+  @apply bg-black;
+}
+@layer base {
+  .navbar_text_color {
+    @apply text-orange-500
+    hover:text-orange-700
+  }
+}
+
+@layer components {
+  /* Bileşen temelli stiller buraya yazılır */
+}
+
+@layer utilities {
+  .c-space {
+    @apply sm:px-10 px-5;
+  }
+}
