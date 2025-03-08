@@ -66,7 +66,7 @@ router.get("/accounts", authMiddleware, async (req, res) => {
     const userId = req.user.id.toString();
     
     const gameAccounts = await getGameAccounts(userId);
-    
+
     if (!gameAccounts) {
       return res.status(404).json({
         success: false,
@@ -101,7 +101,7 @@ router.get("/match-history/:gameType?", authMiddleware, async (req, res) => {
     const limit = parseInt(req.query.limit) || 10;
     
     const matches = await getGameMatchHistory(userId, gameType, limit);
-    
+
     res.status(200).json({
       success: true,
       matches

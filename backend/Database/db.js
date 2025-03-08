@@ -472,6 +472,43 @@ export async function createMultiSchoolTournament(agentIds, tournamentData) {
 }
 
 /**
+ * Kullanıcının Riot PUID bilgisini veritabanına kaydeder.
+ * @param {string} userId - Kullanıcı ID'si.
+ * @param {string} gameName - Oyun adı.
+ * @param {string} tagLine - Tag.
+ * @param {string} puid -
+ * @param {Object} lastMatchData - User's last Match history.
+ * @returns {Object} - İşlem sonucu.
+ */
+export async function saveRiotInformations(userId, gameName, tagLine, puid,lastMatchData) {
+  try {
+    const db = await connectDB();
+    const lolInformationsCollection = db.collection("Lol-informations");
+
+    const result = await lolInformationsCollection.updateOne(
+        { userId },
+        {
+          $set: {
+            gameName,
+            tagLine,
+            puid,
+            lastMatchData,
+            lastUpdated: new Date()
+          }
+        },
+        { upsert: true }
+    );
+
+    return { success: true, puid };
+  } catch (error) {
+    console.error("❌ PUID kaydetme hatası:", error);
+    return { success: false, error: error.message };
+  }
+}
+
+
+
+/**
  * Kullanıcının oyun hesaplarını kaydet
  * @param {string} userId - Kullanıcı ID'si
  * @param {Object} gameAccounts - Oyun hesapları
@@ -480,7 +517,6 @@ export async function createMultiSchoolTournament(agentIds, tournamentData) {
  * @param {string} gameAccounts.league.tagLine - Riot tag'i (#TR1, #EUW, vb.)
  * @param {Object} gameAccounts.valorant - Valorant hesap bilgileri
  * @param {string} gameAccounts.valorant.gameName - Oyun içi kullanıcı adı
- * @param {string} gameAccounts.valorant.tagLine - Riot tag'i
  */
 export async function saveGameAccounts(userId, gameAccounts) {
   try {
