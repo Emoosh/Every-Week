@@ -608,6 +608,8 @@ export async function getGameMatchHistory(userId, gameType, limit = 10) {
   try {
     const database = await connectDB();
     
+    console.log("🔍 Fetching match history for userId:", userId, "gameType:", gameType || "ALL", "limit:", limit);
+    
     const query = { userId };
     if (gameType) {
       query.gameType = gameType;
@@ -619,6 +621,21 @@ export async function getGameMatchHistory(userId, gameType, limit = 10) {
       .limit(limit)
       .toArray();
       
+    console.log(`✅ Found ${matches.length} matches for userId: ${userId}`);
+    
+    // Debug için ilk maçın bilgilerini yazdır
+    if (matches.length > 0) {
+      console.log("First match sample:", 
+        {
+          id: matches[0]._id,
+          gameType: matches[0].gameType,
+          userId: matches[0].userId,
+          hasMatchData: !!matches[0].matchData,
+          createdAt: matches[0].createdAt
+        }
+      );
+    }
+    
     return matches;
   } catch (error) {
     console.error("❌ Get game match history error:", error);
@@ -634,6 +651,8 @@ export async function getPublicUserProfile(userId) {
   try {
     const database = await connectDB();
     
+    console.log("🔍 Getting public profile for userId:", userId);
+    
     // Kullanıcı bilgilerini al
     const user = await database.collection("users").findOne(
       { _id: userId },
@@ -641,14 +660,22 @@ export async function getPublicUserProfile(userId) {
     );
     
     if (!user) {
+      console.log("❌ User not found with ID:", userId);
       return null;
     }
     
+    console.log("✅ User found:", user._id.toString());
+    
+    // UserID'yi string formatına dönüştür (maç geçmişi için)
+    const userIdString = user._id.toString();
+    
     // Oyun hesaplarını al
-    const gameAccounts = await database.collection("game_accounts").findOne({ userId });
+    const gameAccounts = await database.collection("game_accounts").findOne({ userId: userIdString });
+    console.log("Game accounts found:", gameAccounts ? "Yes" : "No");
     
     // Oyun istatistiklerini al
-    const lolInfo = await database.collection("Lol-informations").findOne({ userId });
+    const lolInfo = await database.collection("Lol-informations").findOne({ userId: userIdString });
+    console.log("LoL info found:", lolInfo ? "Yes" : "No");
     
     // Son maçları al (league ve valorant)
     const recentMatches = {
@@ -657,11 +684,14 @@ export async function getPublicUserProfile(userId) {
     };
     
     // League of Legends maçları
+    console.log("Searching for league matches with userId:", userIdString);
     const leagueMatches = await database.collection("game_match_history")
-      .find({ userId, gameType: "league" })
+      .find({ userId: userIdString, gameType: "league" })
       .sort({ createdAt: -1 })
       .limit(5)
       .toArray();
+    
+    console.log("League matches found:", leagueMatches.length);
     
     if (leagueMatches && leagueMatches.length > 0) {
       recentMatches.league = leagueMatches;
@@ -669,17 +699,19 @@ export async function getPublicUserProfile(userId) {
     
     // Valorant maçları
     const valorantMatches = await database.collection("game_match_history")
-      .find({ userId, gameType: "valorant" })
+      .find({ userId: userIdString, gameType: "valorant" })
       .sort({ createdAt: -1 })
       .limit(5)
       .toArray();
+    
+    console.log("Valorant matches found:", valorantMatches.length);
     
     if (valorantMatches && valorantMatches.length > 0) {
       recentMatches.valorant = valorantMatches;
     }
     
     // Tüm bilgileri birleştir
-    return {
+    const result = {
       user: {
         _id: user._id,
         username: user.username || "",
@@ -691,6 +723,10 @@ export async function getPublicUserProfile(userId) {
       riotInfo: lolInfo || null,
       recentMatches
     };
+    
+    console.log("📊 Profile data ready with match counts - LoL:", recentMatches.league.length, "Valorant:", recentMatches.valorant.length);
+    
+    return result;
     
   } catch (error) {
     console.error("❌ Get public user profile error:", error);

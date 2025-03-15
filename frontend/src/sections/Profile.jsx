@@ -47,10 +47,13 @@ const Profile = () => {
         
         // Fetch match history
         try {
+          console.log('Maç geçmişi isteniyor...');
           const historyData = await gameAccountsService.getMatchHistory();
+          console.log('Maç geçmişi yanıtı:', historyData);
           setMatchHistory(historyData.matches || []);
+          console.log('Toplam maç sayısı:', historyData.matches?.length || 0);
         } catch (historyErr) {
-          console.log('No match history found', historyErr);
+          console.error('Maç geçmişi alınamadı:', historyErr);
           // Not setting error since this might be a first-time user
         }
       } catch (err) {
@@ -297,6 +300,62 @@ const Profile = () => {
               </div>
             ) : (
               <p className="text-gray-400">Riot hesap bilgileri bulunamadı.</p>
+            )}
+          </div>
+          
+          {/* Match History Section */}
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold mb-4 text-indigo-300">Son Maçlar</h2>
+            
+            {loading ? (
+              <div className="flex justify-center p-8">
+                <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-indigo-500"></div>
+              </div>
+            ) : matchHistory && matchHistory.length > 0 ? (
+              <div className="bg-gray-700 rounded-lg p-4">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {matchHistory.map((match, index) => (
+                    <div 
+                      key={index} 
+                      className={`border-l-4 ${match.matchData?.win ? 'border-green-500' : 'border-red-500'} p-4 bg-gray-800 rounded-lg shadow`}
+                    >
+                      <div className="flex justify-between items-center mb-2">
+                        <h3 className="text-lg font-semibold">
+                          {match.gameType === 'league' ? 'League of Legends' : 'Valorant'}
+                        </h3>
+                        <span className={`px-2 py-1 rounded text-xs font-bold ${match.matchData?.win ? 'bg-green-900 text-green-300' : 'bg-red-900 text-red-300'}`}>
+                          {match.matchData?.win ? 'Zafer' : 'Mağlubiyet'}
+                        </span>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 gap-2 text-sm">
+                        <div>
+                          <p className="text-gray-400">Şampiyon:</p>
+                          <p>{match.matchData?.champion || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">KDA:</p>
+                          <p>{match.matchData?.kills || 0}/{match.matchData?.deaths || 0}/{match.matchData?.assists || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">CS:</p>
+                          <p>{match.matchData?.cs || 0}</p>
+                        </div>
+                        <div>
+                          <p className="text-gray-400">Süre:</p>
+                          <p>{match.matchData?.gameDuration || 0}</p>
+                        </div>
+                      </div>
+                      
+                      <p className="text-xs text-gray-500 mt-2">
+                        {new Date(match.createdAt).toLocaleString()}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="text-gray-400 bg-gray-700 p-4 rounded-lg">Kaydedilmiş maç geçmişi bulunamadı.</p>
             )}
           </div>
 

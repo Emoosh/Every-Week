@@ -55,11 +55,14 @@ router.get("/public/:userId", async (req, res) => {
   try {
     const { userId } = req.params;
     
+    console.log("🔍 Public profile request for userId:", userId);
+    
     // ObjectId formatına dönüştür
     let objectId;
     try {
       objectId = new ObjectId(userId);
     } catch (error) {
+      console.error("❌ Invalid ObjectId format:", userId);
       return res.status(400).json({
         success: false,
         message: "Geçersiz kullanıcı ID formatı."
@@ -70,13 +73,59 @@ router.get("/public/:userId", async (req, res) => {
     const profileData = await getPublicUserProfile(objectId);
     
     if (!profileData) {
+      console.log("❌ User not found for ID:", userId);
       return res.status(404).json({
         success: false,
         message: "Kullanıcı bulunamadı."
       });
     }
     
+    // Lol-informations koleksiyonundan lastMatchData bilgisini alalım
+    const db = await connectDB();
+    const lolInfo = await db.collection("Lol-informations").findOne({ userId: userId });
+    
+    if (lolInfo && lolInfo.lastMatchData) {
+      console.log("✅ Found lastMatchData in Lol-informations for userId:", userId);
+      
+      // game_match_history koleksiyonu yoksa oluşturalım
+      if (!(await db.listCollections({ name: "game_match_history" }).hasNext())) {
+        console.log("Creating game_match_history collection");
+        await db.createCollection("game_match_history");
+      }
+      
+      // Veritabanında kaydedilmiş maç var mı kontrol edelim
+      const existingMatch = await db.collection("game_match_history").findOne({ 
+        userId: userId,
+        gameType: "league"
+      });
+      
+      // Eğer kayıtlı maç yoksa, lastMatchData'yı maç olarak kaydedelim
+      if (!existingMatch && lolInfo.lastMatchData) {
+        console.log("📝 Creating match record from lastMatchData");
+        await db.collection("game_match_history").insertOne({
+          userId: userId,
+          gameType: "league",
+          matchData: lolInfo.lastMatchData,
+          createdAt: new Date()
+        });
+        
+        console.log("✅ Match created from lastMatchData");
+        
+        // ProfileData içindeki recentMatches'i güncelle
+        profileData.recentMatches.league = [{
+          userId: userId,
+          gameType: "league",
+          matchData: lolInfo.lastMatchData,
+          createdAt: new Date()
+        }];
+      }
+    }
+    
     // Herkese açık profil verilerini döndür
+    console.log("✅ Returning profile data with match counts - LoL:", 
+                profileData.recentMatches.league.length, 
+                "Valorant:", profileData.recentMatches.valorant.length);
+    
     res.status(200).json({
       success: true,
       profile: profileData
