@@ -2,18 +2,21 @@ import express from "express";
 import authMiddleware from "../../middleware/authMiddleware.js";
 import { saveGameAccounts, getGameAccounts, getGameMatchHistory } from "../../Database/db.js";
 import {connectDB} from "../../Database/db.js";
-
+import riotInfoRouter from './profile_information_providers/riot_info.js'; // dosya yolunuza göre ayarlayın
+// ...
 const router = express.Router();
 
-// Kullanıcının oyun hesaplarını kaydetme
+router.use("/riot-info", riotInfoRouter);
+
+//This route used to save the user's game nicks.
+//This typing will be replaced with oAuth2.0 soon.
+
 router.post("/save-accounts", authMiddleware, async (req, res) => {
   try {
-    // JWT token contains 'id' not '_id'
     const userId = req.user.id.toString();
     const { league, valorant } = req.body;
     
-    // En az bir oyun hesabı olmalı
-    if ((!league || ((!league.gameName || league.gameName.trim() === '') && (!league.tagLine || league.tagLine.trim() === ''))) && 
+    if ((!league || ((!league.gameName || league.gameName.trim() === '') && (!league.tagLine || league.tagLine.trim() === ''))) &&
         (!valorant || ((!valorant.gameName || valorant.gameName.trim() === '') && (!valorant.tagLine || valorant.tagLine.trim() === '')))) {
       return res.status(400).json({
         success: false,
@@ -21,10 +24,8 @@ router.post("/save-accounts", authMiddleware, async (req, res) => {
       });
     }
     
-    // Oyun hesaplarını kaydet
     const gameAccounts = {};
     
-    // League of Legends hesabı
     if (league && (league.gameName || league.tagLine)) {
       gameAccounts.league = {
         gameName: league.gameName || "",
@@ -32,7 +33,6 @@ router.post("/save-accounts", authMiddleware, async (req, res) => {
       };
     }
     
-    // Valorant hesabı
     if (valorant && (valorant.gameName || valorant.tagLine)) {
       gameAccounts.valorant = {
         gameName: valorant.gameName || "",
@@ -41,7 +41,8 @@ router.post("/save-accounts", authMiddleware, async (req, res) => {
     }
     
     const result = await saveGameAccounts(userId, gameAccounts);
-    
+    fetchRiotInfo();
+
     if (!result.success) {
       return res.status(400).json(result);
     }
@@ -59,6 +60,16 @@ router.post("/save-accounts", authMiddleware, async (req, res) => {
     });
   }
 });
+
+async function fetchRiotInfo() {
+  const response = await fetch('/riot-info', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ gameName: 'YourGameName', tagLine: 'YourTag' })
+  });
+  const data = await response.json();
+  console.log(data);
+}
 
 // Kullanıcının oyun hesaplarını getirme
 router.get("/accounts", authMiddleware, async (req, res) => {
@@ -100,17 +111,14 @@ router.get("/match-history/:gameType?", authMiddleware, async (req, res) => {
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   try {
-    // JWT token contains 'id' not '_id'
     const userId = req.user.id.toString();
     const { gameType } = req.params;
     const limit = parseInt(req.query.limit) || 10;
     
-    console.log("🔍 Match history request for userId:", userId, "gameType:", gameType || "ALL");
-    
+
     // Direkt olarak Lol-informations koleksiyonundan maç geçmişi bilgisini alalım
     const db = await connectDB();
     const lolInfo = await db.collection("Lol-informations").findOne({ userId });
-    console.log(lolInfo.lastMatchData);
 
 
     if (lolInfo && lolInfo.lastMatchData) {
@@ -143,6 +151,7 @@ router.get("/match-history/:gameType?", authMiddleware, async (req, res) => {
         matches: formattedMatches
       });
     }
+
     
     // Match history veritabanından çekelim
     const matches = await getGameMatchHistory(userId, gameType, limit);

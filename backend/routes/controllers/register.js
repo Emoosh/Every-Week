@@ -57,6 +57,9 @@ router.post("/", async (req, res) => {
 
     // OTP oluştur ve e-posta gönder
     const { token } = await otpController.requestOTP(mail);
+
+    console.log(token);
+
     await sendMail(mail, "Doğrulama Kodu", `Kaydolmak için doğrulama kodunuz: ${token}`);
 
     // Bekleyen kullanıcı olarak veritabanına kaydet
