@@ -1,5 +1,5 @@
 import express from "express";
-import fetch from "node-fetch"; 
+import fetch from "node-fetch";
 import { saveRiotInformations } from "../../../Database/db.js"; // MongoDB bağlantısı
 import authMiddleware from "../../../middleware/authMiddleware.js"; // JWT doğrulama için
 import dotenv from "dotenv";
@@ -9,8 +9,10 @@ const api_key = process.env.RIOT_APIKEY;
 const router = express.Router();
 
 
-// 📌 Kullanıcı giriş yaptığında PUID bilgisini getirip veritabanına kaydeder
+//Router post is a kind of constructor to manage users' riot information to be managed.
 router.post("/", authMiddleware, async (req, res) => {
+
+ //First get the requested infromations from the inputs.
   const { gameName, tagLine } = req.body;
   const userId = req.user.id;
 
@@ -19,13 +21,15 @@ router.post("/", authMiddleware, async (req, res) => {
   }
 
   try {
-    // Riot API'den PUID bilgisini çek
+
     const puidData = await findPUID(gameName, tagLine);
+    console.log("Step 1 OK");
     const lastMatchIDTable = await findLastMatches(puidData.puuid);
-
-    const matchSummaries = await getMatchSummariesWithDelay(lastMatchIDTable, puidData.puuid, 1000);
-
+    console.log("Step 2 OK");
+    const matchSummaries = await getMatchSummariesWithDelay(lastMatchIDTable, puidData.puuid, 10);
+    console.log("Step 3 OK");
     const dbResult = await saveRiotInformations(userId, gameName, tagLine, puidData.puuid, matchSummaries);
+    console.log("Step 4 OK");
 
     if (!dbResult.success) {
       throw new Error(dbResult.error);
@@ -46,7 +50,6 @@ router.post("/", authMiddleware, async (req, res) => {
 // 📌 Riot API'den PUID bilgisini çeken fonksiyon
 async function findPUID(gameName, tagLine) {
   const url = `https://europe.api.riotgames.com/riot/account/v1/accounts/by-riot-id/${gameName}/${tagLine}?api_key=${api_key}`;
-
   try {
     const response = await fetch(url);
     if (!response.ok) {
@@ -54,6 +57,7 @@ async function findPUID(gameName, tagLine) {
     }
 
     const data = await response.json();
+
     return data;
   } catch (error) {
     console.error("API Request Failed:", error);
@@ -84,7 +88,7 @@ function delay(ms) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-async function getMatchSummariesWithDelay(matchIds, puuid, delayMs = 1000) {
+async function getMatchSummariesWithDelay(matchIds, puuid, delayMs = 10) {
   const results = [];
   for (const matchId of matchIds) {
     try {

@@ -124,6 +124,19 @@ export const gameAccountsService = {
   }
 };
 
+// Profile services
+export const profileService = {
+  // Get current user's profile
+  getProfile: async () => {
+    return fetchAPI('/profile');
+  },
+  
+  // Get public profile of any user
+  getPublicProfile: async (userId) => {
+    return fetchAPI(`/profile/public/${userId}`);
+  }
+};
+
 // Tournament services
 export const tournamentService = {
   // Get school tournaments
@@ -213,6 +226,7 @@ export default {
   authService,
   riotService,
   gameAccountsService,
+  profileService,
   tournamentService,
   adminService
 };

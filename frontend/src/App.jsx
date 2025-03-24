@@ -1,5 +1,5 @@
 import React from 'react'
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, Navigate, useParams } from 'react-router-dom'
 import Navbar from './sections/Navbar'
 import Hero from './sections/Hero'
 import About from "./sections/About.jsx";
@@ -10,6 +10,7 @@ import TournamentCreate from "./components/TournamentCreate.jsx";
 import TournamentList from "./components/TournamentList.jsx";
 import SchoolAgentsList from "./components/SchoolAgentsList.jsx";
 import StudentsList from "./components/StudentsList.jsx";
+import UserProfileView from "./components/UserProfileView.jsx";
 import { AuthProvider } from './context/AuthContext';
 import { useAuth } from './context/AuthContext';
 
@@ -37,6 +38,12 @@ const HomePage = () => {
       <TournamentBracket/>
     </>
   );
+};
+
+// User profile wrapper to extract userId from URL params
+const UserProfileWrapper = () => {
+  const { userId } = useParams();
+  return <UserProfileView userId={userId} />;
 };
 
 const App = () => {
@@ -85,6 +92,15 @@ const App = () => {
                           element={
                             <ProtectedRoute>
                               <StudentsList />
+                            </ProtectedRoute>
+                          } 
+                        />
+                        {/* User Profile View - accessible when authenticated */}
+                        <Route 
+                          path="/user/:userId" 
+                          element={
+                            <ProtectedRoute>
+                              <UserProfileWrapper />
                             </ProtectedRoute>
                           } 
                         />
