@@ -65,7 +65,7 @@ export default function Hero() {
         <section className="min-h-screen w-full flex flex-col relative" id="home">
             <div className="w-full mx-auto flex flex-col sm:mt-36 mt-20 c-space gap-3 z-5">
                 <p className="sm:text-3xl text-xl font-extrabold text-white text-center font-generalsans">
-                    Uni-League
+                    Uni-Leauge
                 </p>
                 <p className="sm:text-3xl text-2xl text-white text-center font-generalsans">s</p>
             </div>
