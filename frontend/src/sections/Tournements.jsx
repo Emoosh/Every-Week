@@ -73,6 +73,8 @@ const TournamentSystem = () => {
     const [selectedMatch, setSelectedMatch] = useState(null);
     // Detay modal'ı açık mı?
     const [showDetails, setShowDetails] = useState(false);
+    // Aktif görünüm modu: 'days' veya 'teams'
+    const [activeView, setActiveView] = useState('days');
 
     // Hover ile ilgili state ve timer
     const [hoveredColumn, setHoveredColumn] = useState(null);

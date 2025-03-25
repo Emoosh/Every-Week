@@ -1,5 +1,16 @@
 const API_URL = 'http://localhost:3000';
 
+// Cache for API responses
+const apiCache = new Map();
+
+// Function to create a cache key
+const createCacheKey = (endpoint, options) => {
+  // Only cache GET requests
+  if (options.method && options.method !== 'GET') return null;
+  
+  return `${endpoint}:${JSON.stringify(options.body || {})}`;
+};
+
 // Helper function for making API requests
 async function fetchAPI(endpoint, options = {}) {
   const url = `${API_URL}${endpoint}`;
@@ -17,6 +28,13 @@ async function fetchAPI(endpoint, options = {}) {
   if (token && !headers.Authorization) {
     headers.Authorization = `Bearer ${token}`;
   }
+  
+  // Add Cache-Control header for GET requests to prevent browser caching
+  if (!options.method || options.method === 'GET') {
+    headers['Cache-Control'] = 'no-cache, no-store, must-revalidate';
+    headers['Pragma'] = 'no-cache';
+    headers['Expires'] = '0';
+  }
 
   // Include credentials for cookies
   const config = {
@@ -24,6 +42,17 @@ async function fetchAPI(endpoint, options = {}) {
     headers,
     credentials: 'include',
   };
+  
+  // Check if we have a cached response for this request
+  const cacheKey = createCacheKey(endpoint, options);
+  if (cacheKey && apiCache.has(cacheKey)) {
+    const cachedData = apiCache.get(cacheKey);
+    // Only use cache for very recent requests (100ms)
+    if (Date.now() - cachedData.timestamp < 100) {
+      console.log(`Using cached response for ${endpoint}`);
+      return cachedData.data;
+    }
+  }
 
   const response = await fetch(url, config);
   
@@ -38,6 +67,14 @@ async function fetchAPI(endpoint, options = {}) {
   // If response is not ok, throw an error with the error data
   if (!response.ok) {
     throw new Error(data.message || 'Something went wrong');
+  }
+  
+  // Cache successful GET responses
+  if (cacheKey) {
+    apiCache.set(cacheKey, {
+      data,
+      timestamp: Date.now()
+    });
   }
   
   return data;
@@ -97,6 +134,14 @@ export const authService = {
 export const riotService = {
   getRiotInfo: async () => {
     return fetchAPI('/riot_information');
+  },
+  
+  // Maç geçmişini manuel olarak güncelle
+  updateMatchHistory: async (gameName, tagLine) => {
+    return fetchAPI('/riot_information', {
+      method: 'POST',
+      body: JSON.stringify({ gameName, tagLine })
+    });
   }
 };
 

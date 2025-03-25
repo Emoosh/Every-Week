@@ -91,7 +91,7 @@ app.post('/logout', (req, res) => {
   });
 });
 
-app.use('/profile', authMiddleware, profileRoute);
+app.use('/profile', profileRoute);
 app.use('/game-accounts', gameAccountsRoute);
 app.use('/login', loginRoute);
 app.use('/register', registerRoute);
