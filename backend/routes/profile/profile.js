@@ -2,6 +2,7 @@ import express from "express";
 import authMiddleware from "../../middleware/authMiddleware.js";
 import { connectDB, getPublicUserProfile } from "../../Database/db.js";
 import { ObjectId } from "mongodb";  
+import {UpdateMatchHistory} from "./profile_information_providers/riot_info.js";
 
 const router = express.Router();
 
@@ -10,11 +11,10 @@ router.get("/", authMiddleware, async (req, res) => {
     const db = await connectDB();
     const usersCollection = db.collection("users");
     const lolInformationsCollection = db.collection("Lol-informations");
+    const gameAccountsCollection = db.collection("game-accounts");
 
-    const userId = req.user.id;  
-    console.log("📦 MongoDB Sorgusu için ID:", userId);
+    const userId = req.user.id;
 
-    // 📌 Kullanıcı bilgilerini getir
     const user = await usersCollection.findOne({ _id: new ObjectId(userId) });
 
     if (!user) {
@@ -26,7 +26,8 @@ router.get("/", authMiddleware, async (req, res) => {
 
     // 📌 Kullanıcının LoL bilgilerini getir
     const lolInfo = await lolInformationsCollection.findOne({ userId });
-
+    
+    // Önce mevcut verileri döndürelim
     res.status(200).json({
       success: true,
       message: "Profil bilgileri başarıyla getirildi.",
@@ -38,8 +39,48 @@ router.get("/", authMiddleware, async (req, res) => {
         role: user.role || "user",        // Role bilgisini ekliyoruz
         schoolName: user.schoolName       // Okul bilgisini ekliyoruz
       },
-      lolInfo: lolInfo || null // Kullanıcının LoL bilgileri varsa ekle, yoksa null döndür
+      lolInfo: lolInfo || null, // Kullanıcının LoL bilgileri varsa ekle, yoksa null döndür
+      lastUpdated: lolInfo?.lastUpdated || null
     });
+    
+    // Arka planda maç geçmişini güncelle
+    try {
+      // Kullanıcının oyun hesaplarını al
+      const gameAccounts = await gameAccountsCollection.findOne({ userId });
+      
+      if (gameAccounts && gameAccounts.league && 
+          gameAccounts.league.gameName && gameAccounts.league.tagLine) {
+        
+        // Son güncelleme zamanını kontrol et
+        const lastUpdated = lolInfo?.lastUpdated || null;
+        const now = new Date();
+        
+        // Son güncelleme 1 saatten eski ise veya hiç güncelleme yapılmamışsa güncelle
+        if (!lastUpdated || (now - new Date(lastUpdated) > 3600000)) {
+          console.log(`⏱️ Updating match history for user ${userId} - Last update was ${lastUpdated ? new Date(lastUpdated).toLocaleString() : 'never'}`);
+          
+          // Asenkron olarak güncelle (response'u beklemeden)
+          UpdateMatchHistory(
+            gameAccounts.league.gameName,
+            gameAccounts.league.tagLine,
+            userId
+          ).then(result => {
+            if (result.success) {
+              console.log(`✅ Match history updated for user ${userId}: ${result.matchCount} matches`);
+            } else {
+              console.error(`❌ Failed to update match history for user ${userId}: ${result.error}`);
+            }
+          }).catch(err => {
+            console.error(`❌ Error updating match history: ${err.message}`);
+          });
+        } else {
+          console.log(`⏭️ Skipping match history update for user ${userId} - Last update was recent (${new Date(lastUpdated).toLocaleString()})`);
+        }
+      }
+    } catch (updateError) {
+      // Hata olsa bile kullanıcı deneyimini etkilemesin
+      console.error("Background match history update error:", updateError);
+    }
 
   } catch (error) {
     console.error("Profil hatası:", error);
@@ -49,6 +90,8 @@ router.get("/", authMiddleware, async (req, res) => {
     });
   }
 });
+
+
 
 // Kullanıcının herkese açık profil bilgilerini getir (auth gerektirmez)
 router.get("/public/:userId", async (req, res) => {
@@ -82,6 +125,10 @@ router.get("/public/:userId", async (req, res) => {
     
     // Lol-informations koleksiyonundan lastMatchData bilgisini alalım
     const db = await connectDB();
+    const lolMatchHistoryUpdate = await db.collection("game-accounts").findOne({ userId: userId });
+
+    console.log(lolMatchHistoryUpdate);
+
     const lolInfo = await db.collection("Lol-informations").findOne({ userId: userId });
     
     if (lolInfo && lolInfo.lastMatchData) {

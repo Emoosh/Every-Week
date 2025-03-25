@@ -8,44 +8,49 @@ dotenv.config();
 const api_key = process.env.RIOT_APIKEY;
 const router = express.Router();
 
+//This method stands for updating the user's match history by api requests.
 
-//Router post is a kind of constructor to manage users' riot information to be managed.
-router.post("/", authMiddleware, async (req, res) => {
-
- //First get the requested infromations from the inputs.
-  const { gameName, tagLine } = req.body;
-  const userId = req.user.id;
-
+export async function UpdateMatchHistory(gameName, tagLine, userId) {
   if (!gameName || !tagLine) {
-    return res.status(400).json({ error: "Game name and tag must be entered!" });
+    console.error("UpdateMatchHistory: Game name and tag must be entered!");
+    return { 
+      success: false, 
+      error: "Game name and tag must be entered!" 
+    };
   }
 
   try {
-
     const puidData = await findPUID(gameName, tagLine);
-    console.log("Step 1 OK");
+    console.log("Step 1 OK - PUID found");
+    
     const lastMatchIDTable = await findLastMatches(puidData.puuid);
-    console.log("Step 2 OK");
+    console.log("Step 2 OK - Match IDs found:", lastMatchIDTable.length);
+    
     const matchSummaries = await getMatchSummariesWithDelay(lastMatchIDTable, puidData.puuid, 10);
-    console.log("Step 3 OK");
+    console.log("Step 3 OK - Match summaries created:", matchSummaries.length);
+    
     const dbResult = await saveRiotInformations(userId, gameName, tagLine, puidData.puuid, matchSummaries);
-    console.log("Step 4 OK");
+    console.log("Step 4 OK - Saved to database");
 
     if (!dbResult.success) {
       throw new Error(dbResult.error);
     }
 
-    res.status(200).json({
+    return {
       success: true,
-      message: "PUID bilgisi başarıyla kaydedildi.",
-      puid: puidData.puuid
-    });
+      message: "Maç geçmişi başarıyla güncellendi.",
+      matchCount: matchSummaries.length,
+      lastUpdated: new Date()
+    };
 
   } catch (error) {
-    console.error("PUID API Error:", error);
-    res.status(500).json({ error: "PUID API ile ilgili bir sorun oluştu." });
+    console.error("UpdateMatchHistory Error:", error);
+    return { 
+      success: false, 
+      error: error.message || "Maç geçmişi güncellenirken bir sorun oluştu." 
+    };
   }
-});
+}
 
 // 📌 Riot API'den PUID bilgisini çeken fonksiyon
 async function findPUID(gameName, tagLine) {
@@ -135,4 +140,43 @@ async function findMatchSummary(matchId, puuid) {
     throw error;
   }
 }
+// API endpoint to manually trigger match history update
+router.post('/', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { gameName, tagLine } = req.body;
+    
+    if (!gameName || !tagLine) {
+      return res.status(400).json({ 
+        success: false, 
+        error: "Oyun adı ve tag zorunludur." 
+      });
+    }
+    
+    console.log(`🔄 Manual update requested for ${gameName}#${tagLine}`);
+    
+    // API çağrısı ile güncelleme başlat
+    const result = await UpdateMatchHistory(gameName, tagLine, userId);
+    
+    if (result.success) {
+      return res.status(200).json({
+        success: true,
+        message: `${result.matchCount} maç başarıyla güncellendi.`,
+        lastUpdated: result.lastUpdated
+      });
+    } else {
+      return res.status(400).json({
+        success: false,
+        error: result.error
+      });
+    }
+  } catch (error) {
+    console.error("Match history update error:", error);
+    return res.status(500).json({
+      success: false,
+      error: "Maç geçmişi güncellenirken bir hata oluştu."
+    });
+  }
+});
+
 export default router;

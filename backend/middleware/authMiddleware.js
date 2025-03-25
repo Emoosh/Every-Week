@@ -13,11 +13,11 @@ const authMiddleware = (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    console.log("✅ Token Doğrulandı:", decoded);  // 🔍 Token'ı konsola yazdır
+    // console.log("✅ Token Doğrulandı:", decoded);  // Debug log - disabled
     req.user = decoded;  // Token'dan gelen bilgiyi req.user'a ata
     next();
   } catch (error) {
-    console.error("❌ Token Doğrulama Hatası:", error);  // 🔍 Hata mesajını göster
+    console.error("❌ Token Doğrulama Hatası:", error);
     return res.status(403).json({ success: false, message: "Geçersiz veya süresi dolmuş token!" });
   }
 };

@@ -41,7 +41,20 @@ router.post("/save-accounts", authMiddleware, async (req, res) => {
     }
     
     const result = await saveGameAccounts(userId, gameAccounts);
-    fetchRiotInfo();
+    
+    // Hesap bilgileri kaydedildikten sonra maç bilgilerini arka planda güncelle
+    if (gameAccounts.league && gameAccounts.league.gameName && gameAccounts.league.tagLine) {
+      // Asenkron olarak çalıştır, yanıtı bekletme
+      setTimeout(() => {
+        fetchRiotInfo(userId, gameAccounts.league.gameName, gameAccounts.league.tagLine)
+          .then(success => {
+            console.log("Riot info update after account save:", success ? "Success" : "Failed");
+          })
+          .catch(err => {
+            console.error("Error updating riot info after account save:", err);
+          });
+      }, 100);
+    }
 
     if (!result.success) {
       return res.status(400).json(result);
@@ -61,14 +74,28 @@ router.post("/save-accounts", authMiddleware, async (req, res) => {
   }
 });
 
-async function fetchRiotInfo() {
-  const response = await fetch('/riot-info', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ gameName: 'YourGameName', tagLine: 'YourTag' })
-  });
-  const data = await response.json();
-  console.log(data);
+// Bu fonksiyon Riot bilgilerini güncellemek için kullanılır
+async function fetchRiotInfo(userId, gameName, tagLine) {
+  try {
+    if (!gameName || !tagLine || !userId) {
+      console.error("❌ fetchRiotInfo: Missing parameters", { userId, gameName, tagLine });
+      return;
+    }
+    
+    console.log(`🔄 Updating match history for ${gameName}#${tagLine}`);
+    const result = await UpdateMatchHistory(gameName, tagLine, userId);
+    
+    if (result.success) {
+      console.log(`✅ Match history updated successfully: ${result.matchCount} matches`);
+      return true;
+    } else {
+      console.error(`❌ Failed to update match history: ${result.error}`);
+      return false;
+    }
+  } catch (error) {
+    console.error("❌ fetchRiotInfo error:", error);
+    return false;
+  }
 }
 
 // Kullanıcının oyun hesaplarını getirme
@@ -76,6 +103,7 @@ router.get("/accounts", authMiddleware, async (req, res) => {
   try {
     // JWT token contains 'id' not '_id'
     const userId = req.user.id.toString();
+    const forceRefresh = req.query.refresh === 'true';
     
     const gameAccounts = await getGameAccounts(userId);
 
@@ -86,6 +114,7 @@ router.get("/accounts", authMiddleware, async (req, res) => {
       });
     }
     
+    // Önce mevcut bilgileri döndürelim
     res.status(200).json({
       success: true,
       accounts: {
@@ -95,6 +124,22 @@ router.get("/accounts", authMiddleware, async (req, res) => {
         updatedAt: gameAccounts.updatedAt
       }
     });
+    
+    // Arka planda maç geçmişini güncelleyelim (League hesabı varsa)
+    if (forceRefresh && gameAccounts.league && 
+        gameAccounts.league.gameName && gameAccounts.league.tagLine) {
+      
+      // Maç geçmişini güncelle (arka planda)
+      setTimeout(() => {
+        fetchRiotInfo(userId, gameAccounts.league.gameName, gameAccounts.league.tagLine)
+          .then(success => {
+            console.log(`Background update after account fetch: ${success ? "Success" : "Failed"}`);
+          })
+          .catch(err => {
+            console.error("Background update error:", err);
+          });
+      }, 100);
+    }
   } catch (error) {
     console.error("Oyun hesaplarını getirme hatası:", error);
     res.status(500).json({
@@ -110,21 +155,19 @@ router.get("/match-history/:gameType?", authMiddleware, async (req, res) => {
   res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
+  
   try {
     const userId = req.user.id.toString();
     const { gameType } = req.params;
     const limit = parseInt(req.query.limit) || 10;
+    const forceRefresh = req.query.refresh === 'true';
     
-
-    // Direkt olarak Lol-informations koleksiyonundan maç geçmişi bilgisini alalım
     const db = await connectDB();
     const lolInfo = await db.collection("Lol-informations").findOne({ userId });
-
-
-    if (lolInfo && lolInfo.lastMatchData) {
-      console.log("✅ Found matchHistory in Lol-informations with", lolInfo.lastMatchData.length, "matches");
-      
-      // Frontend'e doğrudan bu maçları gönderelim
+    const gameAccounts = await db.collection("game-accounts").findOne({ userId });
+    
+    // İlk olarak, var olan verileri hemen dönelim
+    if (lolInfo && lolInfo.lastMatchData && lolInfo.lastMatchData.length > 0) {
       // Her bir maç için bir obje oluşturalım
       const formattedMatches = lolInfo.lastMatchData.slice(0, limit).map((match, index) => {
         return {
@@ -144,23 +187,76 @@ router.get("/match-history/:gameType?", authMiddleware, async (req, res) => {
         };
       });
       
-      console.log("First match sample:", formattedMatches[0]);
-      
-      return res.status(200).json({
+      // Mevcut verileri hemen gönder
+      res.status(200).json({
         success: true,
-        matches: formattedMatches
+        matches: formattedMatches,
+        lastUpdated: lolInfo.lastUpdated || null,
+        updating: false // Şu an bir güncelleme yapılmıyor
       });
+      
+      // Eğer forceRefresh istenmişse veya son güncelleme eski ise, arka planda güncelle
+      const lastUpdated = lolInfo?.lastUpdated || null;
+      const now = new Date();
+      
+      // Zorunlu yenileme istenmişse veya son güncelleme 1 saatten eski ise güncelle
+      if (forceRefresh || !lastUpdated || (now - new Date(lastUpdated) > 3600000)) {
+        if (gameAccounts && gameAccounts.league && 
+            gameAccounts.league.gameName && gameAccounts.league.tagLine) {
+          
+          // Güncelleme işlemi başlatıldı
+          console.log(`🔄 Background refresh started for user ${userId}`);
+          
+          // Asenkron olarak güncelle (response beklemeden)
+          UpdateMatchHistory(
+            gameAccounts.league.gameName, 
+            gameAccounts.league.tagLine, 
+            userId
+          ).then(result => {
+            if (result.success) {
+              console.log(`✅ Match history updated in background: ${result.matchCount} matches`);
+            } else {
+              console.error(`❌ Background update failed: ${result.error}`);
+            }
+          }).catch(err => {
+            console.error("Background update error:", err);
+          });
+        }
+      }
+    } else {
+      // Hiç veri yoksa, Match history veritabanından çekelim
+      const matches = await getGameMatchHistory(userId, gameType, limit);
+      
+      // Veritabanında da yoksa, yeni veri çekmeyi deneyelim
+      if (matches.length === 0 && gameAccounts && gameAccounts.league) {
+        res.status(200).json({
+          success: true,
+          matches: [],
+          updating: true, // İlk kez veri çekiliyor
+          message: "Oyun verileri ilk kez çekiliyor, lütfen bekleyin..."
+        });
+        
+        // Riot API'den veri çekmeyi başlat (asenkron)
+        if (gameAccounts.league.gameName && gameAccounts.league.tagLine) {
+          UpdateMatchHistory(
+            gameAccounts.league.gameName,
+            gameAccounts.league.tagLine,
+            userId
+          ).then(result => {
+            console.log("Initial data fetch result:", result.success ? "Success" : "Failed");
+          }).catch(err => {
+            console.error("Initial data fetch error:", err);
+          });
+        }
+      } else {
+        // Veritabanında maç geçmişi varsa döndür
+        res.status(200).json({
+          success: true,
+          matches: matches,
+          updating: false
+        });
+      }
     }
-
-    
-    // Match history veritabanından çekelim
-    const matches = await getGameMatchHistory(userId, gameType, limit);
-    
-    // Maç geçmişi yoksa boş dizi döndürelim
-    res.status(200).json({
-      success: true,
-      matches: matches
-    });
   } catch (error) {
     console.error("Maç geçmişi getirme hatası:", error);
     res.status(500).json({

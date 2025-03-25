@@ -12,20 +12,26 @@ export const AuthProvider = ({ children }) => {
 
   // Check if user is logged in on initial load
   useEffect(() => {
+    let isMounted = true;
+    
     const checkAuthStatus = async () => {
       // First check if there's a token in localStorage
       const token = localStorage.getItem('token');
       
       if (!token) {
-        setUser(null);
-        setLoading(false);
+        if (isMounted) {
+          setUser(null);
+          setLoading(false);
+        }
         return;
       }
       
       try {
         // If we have a token, try to get the user profile
         const userData = await authService.getProfile();
-        console.log("Profile Response:", userData); // Debug için
+        
+        // Skip if component unmounted during API call
+        if (!isMounted) return;
         
         // userData.user içinden kullanıcı bilgilerini almak
         if (userData && userData.user) {
@@ -37,7 +43,6 @@ export const AuthProvider = ({ children }) => {
           };
           
           setUser(userWithRole);
-          console.log("User profile set from user object:", userWithRole);
         } else {
           // Doğrudan userData kullanımında da role bilgisini kontrol et
           const userWithRole = {
@@ -46,19 +51,27 @@ export const AuthProvider = ({ children }) => {
           };
           
           setUser(userWithRole);
-          console.log("User profile set directly:", userWithRole);
         }
       } catch (err) {
         console.error("Profile fetch error:", err);
         // Token might be invalid, remove it
-        localStorage.removeItem('token');
-        setUser(null);
+        if (isMounted) {
+          localStorage.removeItem('token');
+          setUser(null);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     checkAuthStatus();
+    
+    // Cleanup function
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Login function
