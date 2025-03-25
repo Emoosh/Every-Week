@@ -34,7 +34,6 @@ const HomePage = () => {
   return (
     <>
       <Hero/>
-      <About/>
       <TournamentBracket/>
     </>
   );
