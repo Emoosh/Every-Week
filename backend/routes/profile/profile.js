@@ -4,7 +4,16 @@ import { connectDB, getPublicUserProfile } from "../../Database/db.js";
 import { ObjectId } from "mongodb";  
 import {UpdateMatchHistory} from "./profile_information_providers/riot_info.js";
 
+
+// Importing the team information route
+import teamInformationRoute from './team/teamController.js';
+
+
 const router = express.Router();
+
+
+router.use("/team",authMiddleware,teamInformationRoute);
+
 
 router.get("/", authMiddleware, async (req, res) => {
   try {

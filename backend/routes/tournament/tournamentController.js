@@ -1,12 +1,5 @@
 import express from "express";
-import { 
-  createTournament, 
-  getSchoolTournaments, 
-  getAvailableTournaments, 
-  registerForTournament,
-  createMultiSchoolTournament,
-  getSchoolAgents
-} from "../../Database/db.js";
+import TournamentDatabase from "./tournamentDatabase.js";
 import authMiddleware from "../../middleware/authMiddleware.js";
 
 const router = express.Router();
@@ -41,7 +34,7 @@ router.post("/create", authMiddleware, async (req, res) => {
     // Varsayılan olarak turnuvaya sadece oluşturan kullanıcının okulu katılabilir
     tournamentData.schools = [req.user.schoolName];
 
-    const result = await createTournament(tournamentData);
+    const result = await TournamentDatabase.createSingleSchoolTournament(tournamentData);
 
     if (!result.success) {
       return res.status(400).json(result);
@@ -89,7 +82,7 @@ router.post("/create-multi", authMiddleware, async (req, res) => {
     // İşbirlikçi ajanları ve mevcut kullanıcıyı içeren bir ajan listesi oluştur
     const agentIds = [req.user._id, ...collaboratingAgents];
     
-    const result = await createMultiSchoolTournament(agentIds, tournamentData);
+    const result = await TournamentDatabase.createMultiSchoolTournament(agentIds, tournamentData);
 
     if (!result.success) {
       return res.status(400).json(result);
@@ -118,7 +111,7 @@ router.get("/agents/:schoolName", authMiddleware, async (req, res) => {
       });
     }
     
-    const agents = await getSchoolAgents(schoolName);
+    const agents = await TournamentDatabase.getSchoolAgents(schoolName);
     
     res.status(200).json({
       success: true,
@@ -148,7 +141,7 @@ router.get("/school/:schoolName", authMiddleware, async (req, res) => {
       });
     }
     
-    const tournaments = await getSchoolTournaments(schoolName);
+    const tournaments = await TournamentDatabase.getSchoolTournaments(schoolName);
     
     res.status(200).json({
       success: true,
@@ -175,7 +168,7 @@ router.get("/available", authMiddleware, async (req, res) => {
       });
     }
     
-    const tournaments = await getAvailableTournaments(userSchool);
+    const tournaments = await TournamentDatabase.getAvailableTournaments(userSchool);
     
     res.status(200).json({
       success: true,
@@ -190,7 +183,7 @@ router.get("/available", authMiddleware, async (req, res) => {
   }
 });
 
-// Bir turnuvaya kaydol
+// Bireysel turnuva kaydı
 router.post("/register/:id", authMiddleware, async (req, res) => {
   try {
     const tournamentId = req.params.id;
@@ -205,7 +198,7 @@ router.post("/register/:id", authMiddleware, async (req, res) => {
       });
     }
     
-    const result = await registerForTournament(tournamentId, userId, userSchool, teamName, teamMembers);
+    const result = await TournamentDatabase.registerUserForTournament(tournamentId, userId, userSchool, teamName, teamMembers);
     
     if (!result.success) {
       return res.status(400).json(result);
@@ -217,6 +210,67 @@ router.post("/register/:id", authMiddleware, async (req, res) => {
     res.status(500).json({
       success: false,
       message: "Turnuvaya kaydolurken bir hata oluştu"
+    });
+  }
+});
+
+// **YENİ EKLENEN ENDPOINT: Takımla turnuvaya kaydol**
+router.post("/register-team/:id", authMiddleware, async (req, res) => {
+  try {
+    const tournamentId = req.params.id;
+    const userId = req.user._id;
+
+    const result = await TournamentDatabase.registerTeamForTournament(tournamentId, userId);
+
+    if (!result.success) {
+      return res.status(400).json(result);
+    }
+
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Takım turnuva kaydı hatası:", error);
+    res.status(500).json({
+      success: false,
+      message: "Takım turnuva kaydı sırasında bir hata oluştu"
+    });
+  }
+});
+
+// Turnuva detaylarını getir
+router.get("/details/:id", authMiddleware, async (req, res) => {
+  try {
+    const tournamentId = req.params.id;
+    const result = await TournamentDatabase.getTournamentDetails(tournamentId);
+    
+    if (!result.success) {
+      return res.status(404).json(result);
+    }
+    
+    res.status(200).json(result);
+  } catch (error) {
+    console.error("Turnuva detayları alma hatası:", error);
+    res.status(500).json({
+      success: false,
+      message: "Turnuva detayları alınırken bir hata oluştu"
+    });
+  }
+});
+
+// Kullanıcının turnuvalarını getir
+router.get("/my-tournaments", authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user._id;
+    const tournaments = await TournamentDatabase.getUserTournaments(userId);
+    
+    res.status(200).json({
+      success: true,
+      tournaments
+    });
+  } catch (error) {
+    console.error("Kullanıcı turnuvaları alma hatası:", error);
+    res.status(500).json({
+      success: false,
+      message: "Turnuvalar alınırken bir hata oluştu"
     });
   }
 });

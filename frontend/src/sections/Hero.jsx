@@ -1,7 +1,7 @@
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, useGLTF, Html, PerspectiveCamera } from "@react-three/drei";
 import { Suspense, useRef } from "react";
-import { Leva, useControls } from "leva";
+// import { Leva, useControls } from "leva"; // Bu satırı silin
 import { useMediaQuery } from "react-responsive";
 import { MathUtils } from 'three';
 
@@ -28,8 +28,6 @@ const Model = ({ isMobile, isTablet }) => {
         }
     });
 
-
-
     return (
         <primitive
             ref={modelRef} // Model referansı
@@ -42,6 +40,8 @@ const Model = ({ isMobile, isTablet }) => {
 };
 
 export default function Hero() {
+    // useControls hook'larını silin
+    /* 
     const position = useControls('Position', {
         x: { value: 0, min: -30, max: 30 },
         y: { value: 0, min: -30, max: 30 },
@@ -57,33 +57,29 @@ export default function Hero() {
         rotationY: { value: 0, min: 0, max: 360 },
         rotationZ: { value: 0, min: 0, max: 360 }
     });
+    */
 
-    const isMobile = useMediaQuery({ maxWidth: 768 }); // Mobil olup olmadığını kontrol et
-    const isTablet = useMediaQuery({ minWidth: 768,maxWidth: 1024 }); // Mobil olup olmadığını kontrol et
+    const isMobile = useMediaQuery({ maxWidth: 768 });
+    const isTablet = useMediaQuery({ minWidth: 768, maxWidth: 1024 });
 
     return (
         <section className="min-h-screen w-full flex flex-col relative" id="home">
             <div className="w-full mx-auto flex flex-col sm:mt-36 mt-20 c-space gap-3 z-5">
                 <p className="sm:text-3xl text-xl font-extrabold text-white text-center font-generalsans">
-                    Uni-Leauge
+                    Uni-League
                 </p>
-                <p className="sm:text-3xl text-2xl text-white text-center font-generalsans">s</p>
+                <p className="sm:text-3xl text-2xl text-white text-center font-generalsans">Üniversite E-Spor Ligi</p>
             </div>
 
             <div className="w-full h-full absolute inset-0">
-                <Leva />
+                {/* <Leva /> Bu satırı silin */}
                 <Canvas className="w-full h-full">
                     <Suspense fallback={<Html><div>Model Yükleniyor...</div></Html>}>
                         <PerspectiveCamera makeDefault position={[0, 0, 30]} />
                         <Model
-                            isMobile={isMobile} // 🟢 isMobile değişkenini prop olarak Model'e geçiriyoruz
-                            position={[position.x, position.y, position.z]}
-                            scale={scale.value}
-                            rotation={[
-                                (rotation.rotationX * Math.PI) / 180, // Dereceyi radyana çevir
-                                (rotation.rotationY * Math.PI) / 180,
-                                (rotation.rotationZ * Math.PI) / 180
-                            ]}
+                            isMobile={isMobile}
+                            isTablet={isTablet}
+                            // position, scale, rotation prop'larını silin çünkü artık useControls yok
                         />
                         <ambientLight intensity={1} />
                         <directionalLight position={[2, 5, 5]} />

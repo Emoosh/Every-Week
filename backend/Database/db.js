@@ -21,7 +21,7 @@ export async function connectDB() {
     if (!db) { 
       await client.connect();
       db = client.db("Every-Week");
-      console.log("✅ Connected to MongoDB!");
+      console.log(" 🎙️ MongoDB 🤘🏻");
     }
     return db;
   } catch (error) {
@@ -29,9 +29,7 @@ export async function connectDB() {
   }
 }
 
-/**
- * Kullanıcı kaydı oluşturur (signup)
- */
+
 export async function signup(e_mail, password, schoolName = null, role = "user") {
   try {
     const database = await connectDB();  
@@ -39,24 +37,20 @@ export async function signup(e_mail, password, schoolName = null, role = "user")
     const newUser = {
       e_mail,
       password,
-      schoolName, // User's school
-      role, // "user", "schoolAgent"
+      schoolName, 
+      role, 
       createdAt: new Date(),
       lastLogin: null
     };
 
     const result = await database.collection("users").insertOne(newUser);
-    console.log("✅ User created with ID:", result.insertedId);
     return { success: true, userId: result.insertedId };
   } catch (error) {
-    console.error("❌ Signup error:", error);
     return { success: false, error: error.message };
   }
 }
 
-/**
- * Kullanıcı giriş yapar (login)
- */
+
 export async function login(e_mail, password) {
   try {
     const database = await connectDB();
@@ -64,7 +58,6 @@ export async function login(e_mail, password) {
     const user = await database.collection("users").findOne({ e_mail, password });
 
     if (!user) {
-      console.log("❌ Invalid email or password!");
       return null;
     }
 
@@ -73,171 +66,10 @@ export async function login(e_mail, password) {
       { $set: { lastLogin: new Date() } }
     );
 
-    console.log("✅ Login succeeded:", user.e_mail);
     return user;
   } catch (error) {
     console.error("❌ Login error:", error);
     return null;
-  }
-}
-
-/**
- * Create a new tournament
- * @param {Object} tournamentData - Turnuva verileri
- * @param {string} tournamentData.title - Turnuva başlığı
- * @param {string} tournamentData.description - Turnuva açıklaması
- * @param {string} tournamentData.game - Oyun adı
- * @param {number} tournamentData.prizePool - Ödül havuzu
- * @param {number} tournamentData.participantLimit - Katılımcı sınırı
- * @param {Date} tournamentData.startDate - Başlangıç tarihi
- * @param {Date} tournamentData.endDate - Bitiş tarihi
- * @param {Date} tournamentData.registrationDeadline - Kayıt son tarihi
- * @param {string} tournamentData.createdBy - Turnuvayı oluşturan okul ajanı ID'si
- * @param {Array<string>} tournamentData.schools - Katılımcı okulların listesi
- */
-export async function createTournament(tournamentData) {
-  try {
-    const database = await connectDB();
-    
-    const newTournament = {
-      title: tournamentData.title,
-      description: tournamentData.description,
-      game: tournamentData.game,
-      prizePool: tournamentData.prizePool,
-      participantLimit: tournamentData.participantLimit,
-      startDate: new Date(tournamentData.startDate),
-      endDate: new Date(tournamentData.endDate),
-      registrationDeadline: new Date(tournamentData.registrationDeadline),
-      createdBy: tournamentData.createdBy,
-      schools: tournamentData.schools || [], // Katılabilecek okulların listesi
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      participants: [],
-      status: "upcoming" // "upcoming", "ongoing", "completed"
-    };
-    
-    const result = await database.collection("tournaments").insertOne(newTournament);
-    console.log("✅ Tournament created with ID:", result.insertedId);
-    return { success: true, tournamentId: result.insertedId };
-  } catch (error) {
-    console.error("❌ Tournament creation error:", error);
-    return { success: false, error: error.message };
-  }
-}
-
-/**
- * Get tournaments filtered by school
- * @param {string} schoolName - Okul adı
- * @returns {Array} - Okulun turnuvaları
- */
-export async function getSchoolTournaments(schoolName) {
-  try {
-    const database = await connectDB();
-    const tournaments = await database.collection("tournaments")
-      .find({ schools: schoolName }) // schools dizisinde belirtilen okul adını ara
-      .sort({ startDate: 1 }) // Yaklaşan turnuvalar önce gösterilir
-      .toArray();
-    
-    return tournaments;
-  } catch (error) {
-    console.error("❌ Get tournaments error:", error);
-    return [];
-  }
-}
-
-/**
- * Get all tournaments that a user can participate in
- * @param {string} schoolName - Kullanıcının okul adı 
- * @returns {Array} - Katılabileceği turnuvalar
- */
-export async function getAvailableTournaments(schoolName) {
-  try {
-    const database = await connectDB();
-    const now = new Date();
-    
-    // Okul listesinde kullanıcının okulu bulunan ve kayıt süresi geçmemiş turnuvaları getir
-    const tournaments = await database.collection("tournaments")
-      .find({ 
-        schools: schoolName,
-        registrationDeadline: { $gt: now },
-        status: "upcoming"
-      })
-      .sort({ startDate: 1 })
-      .toArray();
-    
-    return tournaments;
-  } catch (error) {
-    console.error("❌ Get available tournaments error:", error);
-    return [];
-  }
-}
-
-/**
- * Register user for a tournament
- * @param {string} tournamentId - Turnuva ID'si
- * @param {string} userId - Kullanıcı ID'si
- * @param {string} userSchool - Kullanıcının okulu
- * @param {string} teamName - Takım adı (opsiyonel)
- * @param {Array} teamMembers - Takım üyeleri (opsiyonel)
- */
-export async function registerForTournament(tournamentId, userId, userSchool, teamName = null, teamMembers = []) {
-  try {
-    const database = await connectDB();
-    
-    // Önce turnuvayı kontrol et
-    const tournament = await database.collection("tournaments").findOne({ _id: tournamentId });
-    
-    if (!tournament) {
-      return { success: false, message: "Turnuva bulunamadı" };
-    }
-    
-    // Kullanıcının okulu turnuvaya katılabilir mi kontrol et
-    if (!tournament.schools.includes(userSchool)) {
-      return { success: false, message: "Bu turnuvaya yalnızca belirli okulların öğrencileri katılabilir" };
-    }
-    
-    // Turnuva kayıt süresi kontrolü
-    const now = new Date();
-    if (tournament.registrationDeadline < now) {
-      return { success: false, message: "Turnuva kayıt süresi dolmuştur" };
-    }
-    
-    // Katılımcı sınırı kontrolü
-    if (tournament.participants.length >= tournament.participantLimit) {
-      return { success: false, message: "Turnuva katılımcı sınırına ulaşılmıştır" };
-    }
-    
-    // Kullanıcı daha önce kayıt olmuş mu kontrol et
-    const existingParticipant = await database.collection("tournament_participants").findOne({
-      tournamentId: tournamentId,
-      userId: userId
-    });
-    
-    if (existingParticipant) {
-      return { success: false, message: "Bu turnuvaya zaten kayıt olmuşsunuz" };
-    }
-    
-    // Yeni katılımcı kaydı oluştur
-    const participant = {
-      tournamentId: tournamentId,
-      userId: userId,
-      registeredAt: new Date(),
-      teamName: teamName,
-      teamMembers: teamMembers.includes(userId) ? teamMembers : [userId, ...teamMembers]
-    };
-    
-    await database.collection("tournament_participants").insertOne(participant);
-    
-    // Turnuva belgesini güncelle
-    await database.collection("tournaments").updateOne(
-      { _id: tournamentId },
-      { $addToSet: { participants: userId } }
-    );
-    
-    return { success: true, message: "Turnuvaya başarıyla kaydoldunuz" };
-  } catch (error) {
-    console.error("❌ Tournament registration error:", error);
-    return { success: false, error: error.message };
   }
 }
 
@@ -415,59 +247,6 @@ export async function getStudents(schoolName = null) {
   } catch (error) {
     console.error("❌ Get students error:", error);
     return [];
-  }
-}
-
-/**
- * Create a multi-school tournament
- * @param {Array} agentIds - Turnuva oluşturan okul ajanlarının ID'leri
- * @param {Object} tournamentData - Turnuva verileri
- */
-export async function createMultiSchoolTournament(agentIds, tournamentData) {
-  try {
-    const database = await connectDB();
-    
-    // Ajanları ve okulları kontrol et
-    const agents = await database.collection("school_agents")
-      .find({ userId: { $in: agentIds }, isActive: true })
-      .toArray();
-    
-    if (agents.length !== agentIds.length) {
-      return { success: false, message: "Bir veya daha fazla ajan bulunamadı veya aktif değil" };
-    }
-    
-    // Katılabilecek okulların listesini oluştur
-    const schools = agents.map(agent => agent.schoolName);
-    
-    // Turnuvayı oluştur
-    const newTournament = {
-      title: tournamentData.title,
-      description: tournamentData.description,
-      game: tournamentData.game,
-      prizePool: tournamentData.prizePool,
-      participantLimit: tournamentData.participantLimit,
-      startDate: new Date(tournamentData.startDate),
-      endDate: new Date(tournamentData.endDate),
-      registrationDeadline: new Date(tournamentData.registrationDeadline),
-      createdBy: agentIds, // Birden fazla ajan tarafından oluşturuldu
-      schools: schools, // Katılabilecek okulların listesi
-      createdAt: new Date(),
-      updatedAt: new Date(),
-      participants: [],
-      status: "upcoming" // "upcoming", "ongoing", "completed"
-    };
-    
-    const result = await database.collection("tournaments").insertOne(newTournament);
-    console.log("✅ Multi-school tournament created with ID:", result.insertedId);
-    
-    return { 
-      success: true, 
-      tournamentId: result.insertedId,
-      schools: schools
-    };
-  } catch (error) {
-    console.error("❌ Multi-school tournament creation error:", error);
-    return { success: false, error: error.message };
   }
 }
 

@@ -16,8 +16,9 @@ import authMiddleware from './middleware/authMiddleware.js';
 import profileRoute from './routes/profile/profile.js'
 import gameAccountsRoute from './routes/profile/game-accounts.js'
 
+
 //Tournament Routes
-import tournamentRoute from './routes/tournament/tournament.js'
+import tournamentRoute from './routes/tournament/tournamentController.js'
 
 //Admin Routes
 import adminRoute from './routes/admin/admin.js'

@@ -1,56 +1,86 @@
-import jwt from "jsonwebtoken";
-import dotenv from "dotenv";
-dotenv.config();
+import jwt from "jsonwebtoken"; // ✅ Bu import eksikti!
+import { connectDB } from "../Database/db.js";
+import { ObjectId } from "mongodb";
 
-const authMiddleware = (req, res, next) => {
-  const authHeader = req.headers.authorization;
-
-  if (!authHeader || !authHeader.startsWith("Bearer ")) {
-    return res.status(401).json({ success: false, message: "Yetkisiz erişim! Token eksik." });
-  }
-
-  const token = authHeader.split(" ")[1];
-
+const authMiddleware = async (req, res, next) => {
   try {
-    const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    // console.log("✅ Token Doğrulandı:", decoded);  // Debug log - disabled
-    req.user = decoded;  // Token'dan gelen bilgiyi req.user'a ata
-    next();
-  } catch (error) {
-    console.error("❌ Token Doğrulama Hatası:", error);
-    return res.status(403).json({ success: false, message: "Geçersiz veya süresi dolmuş token!" });
-  }
-};
+    const authHeader = req.headers.authorization;
 
-// Middleware to check if user is a school agent
-const schoolAgentMiddleware = (req, res, next) => {
-  // First authenticate the user
-  authMiddleware(req, res, () => {
-    // Check if user has school agent role (support both naming conventions)
-    if (req.user && (req.user.role === 'schoolAgent' || req.user.role === 'school_agent')) {
-      next();
-    } else {
-      return res.status(403).json({ 
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return res.status(401).json({ 
         success: false, 
-        message: "Bu işlem için okul yetkilisi olmanız gerekiyor." 
+        message: "Yetkilendirme token'ı eksik" 
       });
     }
-  });
-};
 
-// Middleware to check if user belongs to a specific school
-const sameSchoolMiddleware = (req, res, next) => {
-  const tournamentSchool = req.params.schoolName || req.body.schoolName;
-  
-  if (req.user && req.user.schoolName === tournamentSchool) {
+    const token = authHeader.split(" ")[1];
+
+    if (!token) {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Token eksik" 
+      });
+    }
+
+    // Token'ı doğrula
+    const decoded = jwt.verify(token, process.env.JWT_SECRET);
+
+    // ✅ userId field adını düzeltin - token'da 'id' olarak geliyor
+    const userId = decoded.userId || decoded.id; // Her iki durumu da handle et
+    
+    if (!userId) {
+      console.log("❌ No userId found in token");
+      return res.status(401).json({ 
+        success: false, 
+        message: "Token'da kullanıcı ID'si bulunamadı" 
+      });
+    }
+
+    // Kullanıcıyı database'den getir
+    const database = await connectDB();
+    const user = await database.collection("users").findOne({ 
+      _id: new ObjectId(userId) // ✅ Artık doğru userId kullanılıyor
+    });
+
+    if (!user) {
+      console.log("❌ User not found in database");
+      return res.status(401).json({ 
+        success: false, 
+        message: "Kullanıcı bulunamadı" 
+      });
+    }
+
+    // req.user'a kullanıcı bilgilerini ekle
+    req.user = {
+      id: user._id,
+      e_mail: user.mail || user.e_mail,
+      username: user.username,
+      role: user.role, // ✅ Database'den güncel role alınacak
+      schoolName: user.schoolName
+    };
+
+    console.log(req.user);
+    
     next();
-  } else {
-    return res.status(403).json({ 
+  } catch (error) {
+    console.error("❌ Auth middleware error:", error);
+    if (error.name === "JsonWebTokenError") {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Geçersiz token" 
+      });
+    }
+    if (error.name === "TokenExpiredError") {
+      return res.status(401).json({ 
+        success: false, 
+        message: "Token süresi dolmuş" 
+      });
+    }
+    return res.status(500).json({ 
       success: false, 
-      message: "Bu turnuvaya sadece aynı okuldaki öğrenciler katılabilir." 
+      message: "Sunucu hatası" 
     });
   }
 };
 
 export default authMiddleware;
-export { schoolAgentMiddleware, sameSchoolMiddleware };
